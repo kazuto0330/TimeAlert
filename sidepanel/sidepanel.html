@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Time Alert</title>
+  <link rel="stylesheet" href="sidepanel.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- ヘッダー (タブ切り替え) -->
+    <header class="header">
+      <div class="tabs">
+        <button class="tab-button active" data-tab="timer">タイマー</button>
+        <button class="tab-button" data-tab="alarm">アラーム</button>
+      </div>
+    </header>
+
+    <!-- メインコンテンツ (カードリスト) -->
+    <main class="content">
+      <div id="card-list" class="card-list">
+        <!-- カード要素がJSから動的に挿入される -->
+        <p class="empty-message">右下の＋ボタンから追加してください</p>
+      </div>
+    </main>
+
+    <!-- フローティングアクションボタン -->
+    <button id="add-btn" class="fab">+</button>
+  </div>
+
+  <script src="sidepanel.js"></script>
+</body>
+</html>

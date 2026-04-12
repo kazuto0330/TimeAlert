@@ -1,0 +1,45 @@
+{
+  "manifest_version": 3,
+  "name": "Time Alert",
+  "version": "1.0.0",
+  "description": "タイマーとアラーム機能をサイドパネルで提供するChrome拡張機能。",
+  "permissions": [
+    "sidePanel",
+    "storage",
+    "alarms",
+    "notifications"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "side_panel": {
+    "default_path": "sidepanel/sidepanel.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "css": ["content_scripts/content.css"],
+      "js": ["content_scripts/content.js"]
+    }
+  ],
+  "action": {
+    "default_title": "Time Alert"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "sounds/*",
+        "icons/*"
+      ],
+      "matches": ["<all_urls>"]
+    }
+  ],
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}
