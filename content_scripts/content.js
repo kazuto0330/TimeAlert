@@ -34,20 +34,11 @@ function showToastNotification(title) {
 
   document.body.appendChild(toast);
 
-  // 音声の再生 (デフォルト音源)
-  // Web Accessible Resources に追加している必要がある
-  const audioUrl = chrome.runtime.getURL("sounds/Clock-Alarm01-1(Low-Loop).mp3");
-  const audio = new Audio(audioUrl);
-  audio.loop = true;
-  
-  // ブラウザの自動再生ポリシーによってブロックされる可能性があるためcatchする
-  audio.play().catch(e => console.warn("Audio play failed:", e));
-
   // ストップボタンのイベントリスナー
   const stopBtn = toast.querySelector('.ta-toast-stop-btn');
   stopBtn.addEventListener('click', () => {
-    audio.pause();
-    audio.currentTime = 0;
+    // BackgroundのOffscreen Documentに音声停止を要求
+    chrome.runtime.sendMessage({ action: "stopAudio" }).catch(() => {});
     
     // スライドアウトアニメーション
     toast.classList.add('ta-slide-out');

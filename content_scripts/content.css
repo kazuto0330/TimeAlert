@@ -3,8 +3,7 @@
 #time-alert-toast {
   position: fixed;
   top: -100px; /* 初期状態は画面外上部 */
-  left: 50%;
-  transform: translateX(-50%);
+  right: 24px; /* 右側に配置 */
   background-color: #ffffff;
   color: #333333;
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);

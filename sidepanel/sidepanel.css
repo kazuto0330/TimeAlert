@@ -89,6 +89,127 @@ body {
   margin-top: 40px;
 }
 
+/* カードのデザイン */
+.card {
+  background-color: var(--card-bg);
+  border-radius: var(--border-radius);
+  padding: 16px;
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  cursor: grab;
+}
+
+.card:active {
+  cursor: grabbing;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.card-title {
+  font-size: 16px;
+  font-weight: bold;
+  color: var(--text-color);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 2px 4px;
+  width: 80%;
+  outline: none;
+}
+
+.card-title:not([readonly]) {
+  border-color: var(--border-color);
+  background-color: var(--bg-color);
+}
+
+.delete-btn {
+  background: none;
+  border: none;
+  color: var(--text-color);
+  opacity: 0.5;
+  font-size: 20px;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0 4px;
+  transition: opacity 0.2s;
+}
+
+.delete-btn:hover {
+  opacity: 1;
+  color: #ff4444;
+}
+
+/* タイマーカード固有のボディ */
+.card-body {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.time-display {
+  font-size: 40px;
+  font-weight: 300;
+  color: var(--text-color);
+  background: transparent;
+  border: none;
+  width: 100%;
+  outline: none;
+  font-variant-numeric: tabular-nums;
+  cursor: text;
+}
+
+.time-display[readonly] {
+  cursor: default;
+}
+
+.play-stop-btn {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  line-height: 1;
+  padding-bottom: 2px; /* アイコンの縦ズレ補正 */
+  cursor: pointer;
+  transition: background-color 0.2s, transform 0.1s;
+  flex-shrink: 0;
+}
+
+.play-stop-btn.play {
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  border: 1px solid var(--border-color);
+}
+
+.play-stop-btn.play:hover {
+  background-color: #e0e0e0;
+}
+
+.play-stop-btn.stop {
+  background-color: var(--accent-color);
+  color: white;
+  box-shadow: 0 2px 8px rgba(255, 140, 0, 0.4);
+}
+
+.play-stop-btn.stop:hover {
+  background-color: #e07b00;
+}
+
+@media (prefers-color-scheme: dark) {
+  .play-stop-btn.play:hover {
+    background-color: #444444;
+  }
+}
+
 /* フローティングアクションボタン (FAB) */
 .fab {
   position: absolute;
