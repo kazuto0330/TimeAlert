@@ -161,8 +161,21 @@ async function playAudio() {
       });
     }
   }
+
+  // 設定を取得
+  const syncData = await chrome.storage.sync.get('settings');
+  const localData = await chrome.storage.local.get('customSoundData');
+  const settings = syncData.settings || {};
+  const volume = settings.volume !== undefined ? settings.volume : 50;
+  let url = null;
+
+  if (settings.sound === 'custom' && localData.customSoundData) {
+    url = localData.customSoundData;
+  } else if (settings.sound) {
+    url = chrome.runtime.getURL(settings.sound);
+  }
   
-  chrome.runtime.sendMessage({ action: 'playAudio' }).catch(e => console.error(e));
+  chrome.runtime.sendMessage({ action: 'playAudio', url, volume }).catch(e => console.error(e));
 }
 
 // ポップアップ通知からの停止メッセージを受け取る
