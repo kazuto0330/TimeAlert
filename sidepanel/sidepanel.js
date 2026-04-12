@@ -48,6 +48,50 @@ function formatSeconds(totalSeconds) {
   return `${mStr}:${sStr}`;
 }
 
+// Utility: Parse Alarm Time input to HH:MM
+function parseAlarmTime(input) {
+  let s = toHalfWidth(input).replace(/[^0-9]/g, '');
+  if (!s) return "00:00";
+  let h = 0, m = 0;
+  if (s.length <= 2) {
+    h = parseInt(s, 10);
+  } else if (s.length === 3) {
+    h = parseInt(s.slice(0, 1), 10);
+    m = parseInt(s.slice(1, 3), 10);
+  } else {
+    h = parseInt(s.slice(0, s.length - 2), 10);
+    m = parseInt(s.slice(-2), 10);
+  }
+  h = Math.min(23, h);
+  m = Math.min(59, m);
+  return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+}
+
+// Utility: Calculate next alarm time
+function calculateNextAlarmTime(timeStr, days) {
+  const [h, m] = timeStr.split(':').map(Number);
+  const now = new Date();
+  const target = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m, 0, 0);
+
+  if (days && days.length > 0) {
+    for (let i = 0; i <= 7; i++) {
+      const checkDate = new Date(target.getTime() + i * 24 * 60 * 60 * 1000);
+      if (i === 0 && checkDate.getTime() <= now.getTime()) {
+        continue;
+      }
+      if (days.includes(checkDate.getDay())) {
+        return checkDate.getTime();
+      }
+    }
+  } else {
+    if (target.getTime() <= now.getTime()) {
+      target.setDate(target.getDate() + 1);
+    }
+    return target.getTime();
+  }
+  return null;
+}
+
 // UUID Generator
 function generateId(prefix) {
   return prefix + '_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
@@ -70,7 +114,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   renderCards();
   startUITimer();
 
-  // Listen for storage changes (e.g. from background.js when alarm fires)
+  // Listen for storage changes
   chrome.storage.onChanged.addListener((changes, namespace) => {
     if (namespace === 'sync') {
       if (changes.timers) appState.timers = changes.timers.newValue || [];
@@ -94,8 +138,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (currentTab === 'timer') {
       const maxNum = appState.timers.reduce((max, t) => {
         const match = t.title.match(/^タイマー(\d+)$/);
-        if (match) return Math.max(max, parseInt(match[1], 10));
-        return max;
+        return match ? Math.max(max, parseInt(match[1], 10)) : max;
       }, 0);
       
       const newTimer = {
@@ -106,12 +149,25 @@ document.addEventListener('DOMContentLoaded', async () => {
         endTime: null
       };
       
-      appState.timers.unshift(newTimer); // Add to top
-      saveState();
+      appState.timers.unshift(newTimer);
     } else {
-      // TODO: Alarm logic
-      console.log('アラーム追加は後で実装');
+      const maxNum = appState.alarms.reduce((max, a) => {
+        const match = a.title.match(/^アラーム(\d+)$/);
+        return match ? Math.max(max, parseInt(match[1], 10)) : max;
+      }, 0);
+      
+      const newAlarm = {
+        id: generateId('alarm'),
+        title: `アラーム${maxNum + 1}`,
+        time: "00:00",
+        enabled: false,
+        days: [],
+        expanded: false
+      };
+      
+      appState.alarms.unshift(newAlarm);
     }
+    saveState();
   });
 
   function saveState() {
@@ -122,7 +178,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (timerInterval) clearInterval(timerInterval);
     timerInterval = setInterval(() => {
       if (currentTab === 'timer') {
-        const timeDisplays = document.querySelectorAll('.time-display[data-running="true"]');
+        const timeDisplays = document.querySelectorAll('.timer-card .time-display[data-running="true"]');
         timeDisplays.forEach(display => {
           const endTime = parseInt(display.dataset.endtime, 10);
           const remaining = Math.max(0, Math.ceil((endTime - Date.now()) / 1000));
@@ -133,7 +189,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           }
         });
       }
-    }, 100); // 100ms for smooth update
+    }, 100);
   }
 
   function renderCards() {
@@ -145,24 +201,123 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
-    currentList.forEach((item, index) => {
-      if (currentTab === 'timer') {
-        const card = createTimerCard(item);
-        cardList.appendChild(card);
-      } else {
-        // TODO: Alarm card
-      }
+    currentList.forEach((item) => {
+      const card = currentTab === 'timer' ? createTimerCard(item) : createAlarmCard(item);
+      setupCardCommonEvents(card, item, currentTab);
+      cardList.appendChild(card);
     });
   }
 
   // D&D state
   let draggedCardId = null;
 
+  function setupCardCommonEvents(card, item, tab) {
+    // Title editing (Single Click)
+    const titleInput = card.querySelector('.card-title');
+    titleInput.addEventListener('click', () => {
+      titleInput.readOnly = false;
+      titleInput.focus();
+      card.draggable = false; // 編集中はドラッグ無効
+    });
+    titleInput.addEventListener('blur', () => {
+      titleInput.readOnly = true;
+      card.draggable = true; // 編集終了でドラッグ有効に戻す
+      const newTitle = titleInput.value.trim() || '名称未設定';
+      titleInput.value = newTitle;
+      const list = tab === 'timer' ? appState.timers : appState.alarms;
+      const t = list.find(t => t.id === item.id);
+      if (t && t.title !== newTitle) {
+        t.title = newTitle;
+        saveState();
+      }
+    });
+    titleInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') titleInput.blur();
+    });
+
+    // Delete
+    const deleteBtn = card.querySelector('.delete-btn');
+    deleteBtn.addEventListener('click', async () => {
+      if (tab === 'timer') {
+        appState.timers = appState.timers.filter(t => t.id !== item.id);
+      } else {
+        appState.alarms = appState.alarms.filter(a => a.id !== item.id);
+      }
+      await chrome.alarms.clear(item.id);
+      saveState();
+    });
+
+    // Drag and Drop Events
+    card.addEventListener('dragstart', (e) => {
+      draggedCardId = item.id;
+      e.dataTransfer.effectAllowed = 'move';
+      card.style.opacity = '0.5';
+    });
+
+    card.addEventListener('dragend', () => {
+      draggedCardId = null;
+      card.style.opacity = '1';
+      document.querySelectorAll('.card').forEach(c => {
+        c.style.borderTop = '';
+        c.style.borderBottom = '';
+      });
+    });
+
+    card.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      if (!draggedCardId || draggedCardId === item.id) return;
+      
+      const bounding = card.getBoundingClientRect();
+      const offset = bounding.y + (bounding.height / 2);
+      if (e.clientY - offset > 0) {
+        card.style.borderBottom = '2px solid var(--accent-color)';
+        card.style.borderTop = '';
+      } else {
+        card.style.borderTop = '2px solid var(--accent-color)';
+        card.style.borderBottom = '';
+      }
+    });
+
+    card.addEventListener('dragleave', () => {
+      card.style.borderTop = '';
+      card.style.borderBottom = '';
+    });
+
+    card.addEventListener('drop', (e) => {
+      e.preventDefault();
+      card.style.borderTop = '';
+      card.style.borderBottom = '';
+      
+      if (!draggedCardId || draggedCardId === item.id) return;
+
+      const currentList = tab === 'timer' ? appState.timers : appState.alarms;
+      const draggedIndex = currentList.findIndex(t => t.id === draggedCardId);
+      const targetIndex = currentList.findIndex(t => t.id === item.id);
+
+      if (draggedIndex > -1 && targetIndex > -1) {
+        const bounding = card.getBoundingClientRect();
+        const offset = bounding.y + (bounding.height / 2);
+        const insertAfter = (e.clientY - offset > 0);
+
+        const [draggedItem] = currentList.splice(draggedIndex, 1);
+        const newTargetIndex = currentList.findIndex(t => t.id === item.id);
+        
+        if (insertAfter) {
+          currentList.splice(newTargetIndex + 1, 0, draggedItem);
+        } else {
+          currentList.splice(newTargetIndex, 0, draggedItem);
+        }
+        
+        saveState();
+      }
+    });
+  }
+
   function createTimerCard(timer) {
     const card = document.createElement('div');
     card.className = 'card timer-card';
     card.dataset.id = timer.id;
-    card.draggable = true; // For drag&drop
+    card.draggable = true;
     
     const isRunning = timer.state === 'running';
     let displayTime = formatSeconds(timer.originalSeconds);
@@ -189,45 +344,25 @@ document.addEventListener('DOMContentLoaded', async () => {
       </div>
     `;
 
-    // Title editing (Single Click)
-    const titleInput = card.querySelector('.card-title');
-    titleInput.addEventListener('click', () => {
-      titleInput.readOnly = false;
-      titleInput.focus();
-      card.draggable = false; // 編集中はドラッグ無効
-    });
-    titleInput.addEventListener('blur', () => {
-      titleInput.readOnly = true;
-      card.draggable = true; // 編集終了でドラッグ有効に戻す
-      const newTitle = titleInput.value.trim() || '名称未設定';
-      titleInput.value = newTitle;
-      const t = appState.timers.find(t => t.id === timer.id);
-      if (t && t.title !== newTitle) {
-        t.title = newTitle;
-        saveState();
-      }
-    });
-    titleInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') titleInput.blur();
-    });
-
     // Time editing
     const timeDisplay = card.querySelector('.time-display');
     timeDisplay.addEventListener('focus', () => {
       if (!isRunning) {
+        card.draggable = false;
         timeDisplay.dataset.prevValue = timeDisplay.value;
         if (timer.originalSeconds === 0) timeDisplay.value = '';
       }
     });
     timeDisplay.addEventListener('blur', () => {
       if (!isRunning) {
+        card.draggable = true;
         const input = timeDisplay.value;
         const seconds = parseTimeToSeconds(input);
         const t = appState.timers.find(t => t.id === timer.id);
         if (t) {
           t.originalSeconds = seconds;
-          timeDisplay.value = formatSeconds(seconds); // Empty fix
-          saveState(); // triggers re-render
+          timeDisplay.value = formatSeconds(seconds);
+          saveState();
         }
       }
     });
@@ -246,94 +381,159 @@ document.addEventListener('DOMContentLoaded', async () => {
           t.state = 'running';
           t.endTime = Date.now() + t.originalSeconds * 1000;
           await chrome.alarms.create(t.id, { when: t.endTime });
-          saveState(); // triggers re-render
+          saveState();
         }
       } else {
-        // Stop (Pause / Keep remaining time)
+        // Stop (Pause)
         t.state = 'idle';
         const remaining = Math.max(0, Math.ceil((t.endTime - Date.now()) / 1000));
         t.originalSeconds = remaining;
         t.endTime = null;
         await chrome.alarms.clear(t.id);
-        saveState(); // triggers re-render
-        
-        // Ensure notification is removed if it was showing
+        saveState();
         chrome.runtime.sendMessage({ action: "stopAudio" }).catch(() => {});
       }
     });
 
-    // Delete
-    const deleteBtn = card.querySelector('.delete-btn');
-    deleteBtn.addEventListener('click', async () => {
-      appState.timers = appState.timers.filter(t => t.id !== timer.id);
-      await chrome.alarms.clear(timer.id);
-      saveState(); // triggers re-render
+    return card;
+  }
+
+  function createAlarmCard(alarm) {
+    const card = document.createElement('div');
+    card.className = 'card alarm-card';
+    card.dataset.id = alarm.id;
+    card.draggable = true;
+
+    const daysLabels = ['日', '月', '火', '水', '木', '金', '土'];
+    const daysOrder = [1, 2, 3, 4, 5, 6, 0]; // 月〜日の順で表示
+    const isExpanded = alarm.expanded || false;
+
+    card.innerHTML = `
+      <div class="card-header">
+        <input type="text" class="card-title" value="${alarm.title}" readonly>
+        <button class="delete-btn" title="削除">×</button>
+      </div>
+      <div class="card-body">
+        <input type="text" class="time-display alarm-time-input" 
+          value="${alarm.time}"
+        >
+        <label class="toggle-switch">
+          <input type="checkbox" class="alarm-toggle" ${alarm.enabled ? 'checked' : ''}>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <button class="expand-btn ${isExpanded ? 'expanded' : ''}">${isExpanded ? '▲ 詳細設定' : '▼ 詳細設定'}</button>
+      <div class="days-container ${isExpanded ? 'show' : ''}">
+        ${daysOrder.map(d => `
+          <button class="day-btn ${alarm.days.includes(d) ? 'selected' : ''}" data-day="${d}">
+            ${daysLabels[d]}
+          </button>
+        `).join('')}
+      </div>
+    `;
+
+    // Time editing
+    const timeDisplay = card.querySelector('.time-display');
+    timeDisplay.addEventListener('focus', () => {
+      card.draggable = false;
+      timeDisplay.dataset.prevValue = timeDisplay.value;
+      if (alarm.time === "00:00") timeDisplay.value = '';
+    });
+    timeDisplay.addEventListener('blur', async () => {
+      card.draggable = true;
+      const parsed = parseAlarmTime(timeDisplay.value);
+      const a = appState.alarms.find(a => a.id === alarm.id);
+      if (a) {
+        a.time = parsed;
+        timeDisplay.value = parsed;
+        
+        // 時刻が変更されたら自動でONにする処理
+        a.enabled = true;
+        card.querySelector('.alarm-toggle').checked = true;
+        const nextTime = calculateNextAlarmTime(a.time, a.days);
+        if (nextTime) {
+          await chrome.alarms.create(a.id, { when: nextTime });
+        } else {
+          a.enabled = false;
+          card.querySelector('.alarm-toggle').checked = false;
+        }
+        saveState();
+      }
+    });
+    timeDisplay.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') timeDisplay.blur();
     });
 
-    // Drag and Drop Events
-    card.addEventListener('dragstart', (e) => {
-      draggedCardId = timer.id;
-      e.dataTransfer.effectAllowed = 'move';
-      card.style.opacity = '0.5';
+    // Expand button
+    const expandBtn = card.querySelector('.expand-btn');
+    const daysContainer = card.querySelector('.days-container');
+    expandBtn.addEventListener('click', () => {
+      const a = appState.alarms.find(a => a.id === alarm.id);
+      if (a) {
+        a.expanded = !a.expanded;
+        if (a.expanded) {
+          expandBtn.classList.add('expanded');
+          daysContainer.classList.add('show');
+          expandBtn.textContent = '▲ 詳細設定';
+        } else {
+          expandBtn.classList.remove('expanded');
+          daysContainer.classList.remove('show');
+          expandBtn.textContent = '▼ 詳細設定';
+        }
+        saveState();
+      }
     });
 
-    card.addEventListener('dragend', () => {
-      draggedCardId = null;
-      card.style.opacity = '1';
-      document.querySelectorAll('.card').forEach(c => {
-        c.style.borderTop = '';
-        c.style.borderBottom = '';
+    // Days selection
+    const dayBtns = card.querySelectorAll('.day-btn');
+    dayBtns.forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const d = parseInt(btn.dataset.day, 10);
+        const a = appState.alarms.find(a => a.id === alarm.id);
+        if (a) {
+          if (a.days.includes(d)) {
+            a.days = a.days.filter(day => day !== d);
+            btn.classList.remove('selected');
+          } else {
+            a.days.push(d);
+            a.days.sort();
+            btn.classList.add('selected');
+          }
+          if (a.enabled) {
+            const nextTime = calculateNextAlarmTime(a.time, a.days);
+            if (nextTime) {
+              await chrome.alarms.create(a.id, { when: nextTime });
+            } else {
+              a.enabled = false;
+              card.querySelector('.alarm-toggle').checked = false;
+              await chrome.alarms.clear(a.id);
+            }
+          }
+          saveState();
+        }
       });
     });
 
-    card.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      if (!draggedCardId || draggedCardId === timer.id) return;
+    // Toggle logic
+    const toggle = card.querySelector('.alarm-toggle');
+    toggle.addEventListener('change', async (e) => {
+      const a = appState.alarms.find(a => a.id === alarm.id);
+      if (!a) return;
+      a.enabled = e.target.checked;
       
-      const bounding = card.getBoundingClientRect();
-      const offset = bounding.y + (bounding.height / 2);
-      if (e.clientY - offset > 0) {
-        card.style.borderBottom = '2px solid var(--accent-color)';
-        card.style.borderTop = '';
-      } else {
-        card.style.borderTop = '2px solid var(--accent-color)';
-        card.style.borderBottom = '';
-      }
-    });
-
-    card.addEventListener('dragleave', () => {
-      card.style.borderTop = '';
-      card.style.borderBottom = '';
-    });
-
-    card.addEventListener('drop', (e) => {
-      e.preventDefault();
-      card.style.borderTop = '';
-      card.style.borderBottom = '';
-      
-      if (!draggedCardId || draggedCardId === timer.id) return;
-
-      const currentList = currentTab === 'timer' ? appState.timers : appState.alarms;
-      const draggedIndex = currentList.findIndex(t => t.id === draggedCardId);
-      const targetIndex = currentList.findIndex(t => t.id === timer.id);
-
-      if (draggedIndex > -1 && targetIndex > -1) {
-        const bounding = card.getBoundingClientRect();
-        const offset = bounding.y + (bounding.height / 2);
-        const insertAfter = (e.clientY - offset > 0);
-
-        const [draggedItem] = currentList.splice(draggedIndex, 1);
-        const newTargetIndex = currentList.findIndex(t => t.id === timer.id);
-        
-        if (insertAfter) {
-          currentList.splice(newTargetIndex + 1, 0, draggedItem);
+      if (a.enabled) {
+        const nextTime = calculateNextAlarmTime(a.time, a.days);
+        if (nextTime) {
+          await chrome.alarms.create(a.id, { when: nextTime });
         } else {
-          currentList.splice(newTargetIndex, 0, draggedItem);
+          a.enabled = false;
+          e.target.checked = false;
         }
-        
-        saveState();
-        renderCards();
+      } else {
+        await chrome.alarms.clear(a.id);
+        chrome.runtime.sendMessage({ action: "stopAudio" }).catch(() => {});
       }
+      saveState();
     });
 
     return card;

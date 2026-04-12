@@ -2,11 +2,34 @@
 
 let pendingToasts = []; // OS通知を出して、まだ画面上にポップアップを出せていないアラームのリスト
 
+// Utility: Calculate next alarm time
+function calculateNextAlarmTime(timeStr, days) {
+  const [h, m] = timeStr.split(':').map(Number);
+  const now = new Date();
+  const target = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m, 0, 0);
+
+  if (days && days.length > 0) {
+    for (let i = 0; i <= 7; i++) {
+      const checkDate = new Date(target.getTime() + i * 24 * 60 * 60 * 1000);
+      if (i === 0 && checkDate.getTime() <= now.getTime()) {
+        continue;
+      }
+      if (days.includes(checkDate.getDay())) {
+        return checkDate.getTime();
+      }
+    }
+  } else {
+    if (target.getTime() <= now.getTime()) {
+      target.setDate(target.getDate() + 1);
+    }
+    return target.getTime();
+  }
+  return null;
+}
+
 // 拡張機能インストール時の処理
 chrome.runtime.onInstalled.addListener(() => {
   console.log("Time Alert 拡張機能がインストールされました");
-  
-  // サイドパネルの有効化設定（アクションクリックでサイドパネルを開く）
   chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch((error) => console.error(error));
 });
 
@@ -35,7 +58,6 @@ function checkAndShowPendingToasts() {
             action: "showNotification", 
             alarmId: toast.title 
           }).then(() => {
-            // タブへの送信が成功したらシステム通知を消し、pendingリストから除外
             chrome.notifications.clear(toast.alarmId);
             pendingToasts = pendingToasts.filter(t => t.alarmId !== toast.alarmId);
           }).catch(err => {
@@ -53,42 +75,55 @@ function addPendingToast(alarmId, title) {
   }
 }
 
-// アラーム発火時の処理（ハイブリッド通知の分岐）
+// アラーム発火時の処理
 chrome.alarms.onAlarm.addListener(async (alarm) => {
   console.log("Alarm triggered:", alarm.name);
 
-  // 音声の再生 (Offscreen API経由)
   await playAudio();
 
-  // タイマーの場合はストレージの状態を 'idle' に戻す
+  let notificationTitle = "時間になりました！";
+
   if (alarm.name.startsWith('timer_')) {
     const data = await chrome.storage.sync.get('timers');
     if (data.timers) {
-      const updatedTimers = data.timers.map(t => {
-        if (t.id === alarm.name) {
-          return { ...t, state: 'idle', endTime: null };
-        }
-        return t;
-      });
+      const timer = data.timers.find(t => t.id === alarm.name);
+      if (timer) notificationTitle = timer.title;
+
+      const updatedTimers = data.timers.map(t => 
+        t.id === alarm.name ? { ...t, state: 'idle', endTime: null } : t
+      );
       await chrome.storage.sync.set({ timers: updatedTimers });
+    }
+  } else if (alarm.name.startsWith('alarm_')) {
+    const data = await chrome.storage.sync.get('alarms');
+    if (data.alarms) {
+      const a = data.alarms.find(a => a.id === alarm.name);
+      if (a) notificationTitle = a.title;
+
+      let nextTime = null;
+      const updatedAlarms = data.alarms.map(al => {
+        if (al.id === alarm.name) {
+          if (al.days && al.days.length > 0) {
+            nextTime = calculateNextAlarmTime(al.time, al.days);
+            return al; // 状態は維持（繰り返し）
+          } else {
+            return { ...al, enabled: false }; // 1回きりなので無効化
+          }
+        }
+        return al;
+      });
+      await chrome.storage.sync.set({ alarms: updatedAlarms });
+      
+      if (nextTime) {
+        await chrome.alarms.create(alarm.name, { when: nextTime });
+      }
     }
   }
 
-  // タイトル取得のための簡易的な処理（本来はstorageから取得するが今回はアラーム名を利用）
-  let notificationTitle = "時間になりました！";
-  if (alarm.name.startsWith('timer_')) {
-    const data = await chrome.storage.sync.get('timers');
-    const timer = data.timers?.find(t => t.id === alarm.name);
-    if (timer) notificationTitle = timer.title;
-  }
-
-  // アクティブなタブを取得
+  // 通知の表示処理
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
     if (tabs.length > 0) {
-      // アクティブなタブが存在する場合はContent Scriptにメッセージを送信して通知UIを表示
       const activeTab = tabs[0];
-      
-      // 特殊なURL (chrome:// など) では Content Script が動作しないためチェック
       if (activeTab.url && !activeTab.url.startsWith('chrome://') && !activeTab.url.startsWith('chrome-extension://')) {
         chrome.tabs.sendMessage(activeTab.id, { 
           action: "showNotification", 
@@ -103,7 +138,6 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
         addPendingToast(alarm.name, notificationTitle);
       }
     } else {
-      // アクティブなタブが存在しない場合はシステム通知を表示
       showSystemNotification(alarm.name, notificationTitle);
       addPendingToast(alarm.name, notificationTitle);
     }
@@ -134,7 +168,6 @@ async function playAudio() {
 // ポップアップ通知からの停止メッセージを受け取る
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.action === "stopAudio") {
-    // 停止された場合、システム通知を消去し、pendingリストもクリアする
     pendingToasts.forEach(toast => {
       chrome.notifications.clear(toast.alarmId);
     });
@@ -142,7 +175,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   }
 });
 
-// システム通知（OS標準の通知）を表示する
+// システム通知を表示する
 function showSystemNotification(alarmId, title) {
   chrome.notifications.create(alarmId, {
     type: "basic",
@@ -150,7 +183,7 @@ function showSystemNotification(alarmId, title) {
     title: "Time Alert",
     message: title,
     buttons: [{ title: "ストップ" }],
-    requireInteraction: true // ユーザーが閉じるまで表示し続ける
+    requireInteraction: true
   });
 }
 
@@ -159,7 +192,6 @@ chrome.notifications.onButtonClicked.addListener((notificationId, buttonIndex) =
   if (buttonIndex === 0) {
     console.log("Notification stopped:", notificationId);
     pendingToasts = pendingToasts.filter(t => t.alarmId !== notificationId);
-    // 音声の停止
     chrome.runtime.sendMessage({ action: "stopAudio" }).catch(() => {});
   }
 });
