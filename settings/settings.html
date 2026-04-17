@@ -7,6 +7,7 @@
   <link rel="stylesheet" href="settings.css">
 </head>
 <body>
+  <button id="close-settings-btn" class="close-settings-btn" aria-label="Close">&times;</button>
   <div class="app-container">
     <aside class="sidebar">
       <h1 class="app-title">Time Alert</h1>
@@ -67,13 +68,16 @@
           
           <div class="setting-card">
             <h3 data-i18n="settingSound">通知音</h3>
-            <select id="setting-sound">
-              <option value="../sounds/Clock-Alarm01-1(Low-Loop).mp3">Clock-Alarm01-1(Low-Loop)</option>
-              <option value="../sounds/Clock-Alarm01-2(Mid-Loop).mp3">Clock-Alarm01-2(Mid-Loop)</option>
-              <option value="../sounds/Clock-Alarm01-3(High-Loop).mp3">Clock-Alarm01-3(High-Loop)</option>
-              <option value="../sounds/Clock-Alarm01-4(Beep).mp3">Clock-Alarm01-4(Beep)</option>
-              <option value="custom" data-i18n="optCustom">オリジナル音源 (アップロード)</option>
-            </select>
+            <div class="sound-select-wrapper">
+              <select id="setting-sound">
+                <option value="../sounds/Clock-Alarm01-1(Low-Loop).mp3">Clock-Alarm01-1(Low-Loop)</option>
+                <option value="../sounds/Clock-Alarm01-2(Mid-Loop).mp3">Clock-Alarm01-2(Mid-Loop)</option>
+                <option value="../sounds/Clock-Alarm01-3(High-Loop).mp3">Clock-Alarm01-3(High-Loop)</option>
+                <option value="../sounds/Clock-Alarm01-4(Beep).mp3">Clock-Alarm01-4(Beep)</option>
+                <option value="custom" data-i18n="optCustom">オリジナル音源 (アップロード)</option>
+              </select>
+              <button id="preview-sound-btn" class="preview-btn" title="プレビュー">▶</button>
+            </div>
           </div>
           
           <div class="setting-card" id="upload-container" style="display: none;">

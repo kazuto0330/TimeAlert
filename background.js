@@ -178,13 +178,15 @@ async function playAudio() {
   chrome.runtime.sendMessage({ action: 'playAudio', url, volume }).catch(e => console.error(e));
 }
 
-// ポップアップ通知からの停止メッセージを受け取る
+// ポップアップ通知からの停止メッセージ等を受け取る
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.action === "stopAudio") {
     pendingToasts.forEach(toast => {
       chrome.notifications.clear(toast.alarmId);
     });
     pendingToasts = [];
+  } else if (msg.action === "playAudio" && sender.id === chrome.runtime.id && !sender.url?.includes('offscreen.html')) {
+    playAudio().catch(e => console.error(e));
   }
 });
 

@@ -16,8 +16,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       settingUpload: "オリジナル音源をアップロード (5MB以下)",
       settingAutoEnable: "アラーム時刻変更時に自動でONにする",
       settingAutoEnableDesc: "時刻を変更した際、自動的にアラームを有効化します。"
-    },
-    en: {
+      },
+      en: {
       settingsTitle: "Settings - Time Alert",
       tabGeneral: "General",
       tabAppearance: "Appearance",
@@ -33,7 +33,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       settingUpload: "Upload Custom Audio (Max 5MB)",
       settingAutoEnable: "Auto-enable alarm on time change",
       settingAutoEnableDesc: "Automatically enables the alarm when the time is modified."
-    }
+      }
   };
 
   const defaultSettings = {
@@ -183,12 +183,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     appSettings.sound = newSound;
     uploadContainer.style.display = soundSelect.value === 'custom' ? 'flex' : 'none';
     saveSettings();
-    
-    if (soundSelect.value !== 'custom') {
+  });
+
+  const previewSoundBtn = document.getElementById('preview-sound-btn');
+  if (previewSoundBtn) {
+    previewSoundBtn.addEventListener('click', () => {
       chrome.runtime.sendMessage({ action: "playAudio", url: null, volume: appSettings.volume }).catch(() => {});
       setTimeout(() => chrome.runtime.sendMessage({ action: "stopAudio" }).catch(() => {}), 1500);
-    }
-  });
+    });
+  }
+
+  const closeSettingsBtn = document.getElementById('close-settings-btn');
+  if (closeSettingsBtn) {
+    closeSettingsBtn.addEventListener('click', () => {
+      window.close();
+    });
+  }
 
   uploadInput.addEventListener('change', (e) => {
     const file = e.target.files[0];

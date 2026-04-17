@@ -250,3 +250,51 @@ input:checked + .toggle-slider {
 input:checked + .toggle-slider:before {
   transform: translateX(24px);
 }
+
+.sound-select-wrapper {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.preview-btn {
+  padding: 10px 16px;
+  background-color: var(--accent-color);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: opacity 0.2s;
+  white-space: nowrap;
+}
+
+.preview-btn:hover {
+  opacity: 0.8;
+}
+
+.close-settings-btn {
+  position: fixed;
+  top: 10px;
+  right: 16px;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background-color: var(--card-bg);
+  color: var(--text-color);
+  border: 0px solid var(--border-color);
+  font-size: 43px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  transition: background-color 0.2s, color 0.2s, transform 0.2s;
+}
+
+.close-settings-btn:hover {
+  background-color: var(--bg-color);
+  transform: scale(1.05);
+}
