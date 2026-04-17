@@ -547,6 +547,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     const daysOrder = [1, 2, 3, 4, 5, 6, 0]; // 月〜日の順で表示
     const isExpanded = alarm.expanded || false;
 
+    const activeDaysText = daysOrder
+      .filter(d => alarm.days.includes(d))
+      .map(d => daysLabels[d])
+      .join(', ');
+
     card.innerHTML = `
       <div class="card-header">
         <input type="text" class="card-title" value="${alarm.title}" readonly>
@@ -561,13 +566,21 @@ document.addEventListener('DOMContentLoaded', async () => {
           <span class="toggle-slider"></span>
         </label>
       </div>
+      ${(!isExpanded && (activeDaysText || alarm.memo)) ? `
+      <div class="alarm-summary">
+        ${activeDaysText ? `<span class="summary-days">${activeDaysText}</span>` : ''}
+        ${alarm.memo ? `<span class="summary-memo" title="${alarm.memo}">${alarm.memo}</span>` : ''}
+      </div>` : ''}
       <button class="expand-btn ${isExpanded ? 'expanded' : ''}">${isExpanded ? '▲ 詳細設定' : '▼ 詳細設定'}</button>
       <div class="days-container ${isExpanded ? 'show' : ''}">
-        ${daysOrder.map(d => `
-          <button class="day-btn ${alarm.days.includes(d) ? 'selected' : ''}" data-day="${d}">
-            ${daysLabels[d]}
-          </button>
-        `).join('')}
+        <div class="days-row">
+          ${daysOrder.map(d => `
+            <button class="day-btn ${alarm.days.includes(d) ? 'selected' : ''}" data-day="${d}">
+              ${daysLabels[d]}
+            </button>
+          `).join('')}
+        </div>
+        <input type="text" class="memo-input" placeholder="メモを追加..." value="${alarm.memo || ''}">
       </div>
     `;
 
@@ -580,14 +593,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
     timeDisplay.addEventListener('blur', async () => {
       card.draggable = true;
+      const inputVal = timeDisplay.value.trim();
       const parsed = parseAlarmTime(timeDisplay.value);
       const a = appState.alarms.find(a => a.id === alarm.id);
       if (a) {
         a.time = parsed;
         timeDisplay.value = parsed;
         
-        // 時刻が変更されたら設定に基づいて自動でONにする処理
-        if (appState.settings.autoEnableAlarm) {
+        // 時刻が変更されたら設定に基づいて自動でONにする処理 (ただし入力が空の場合は除く)
+        if (appState.settings.autoEnableAlarm && inputVal !== "") {
           a.enabled = true;
           card.querySelector('.alarm-toggle').checked = true;
           const nextTime = calculateNextAlarmTime(a.time, a.days);
@@ -620,6 +634,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Expand button
     const expandBtn = card.querySelector('.expand-btn');
     const daysContainer = card.querySelector('.days-container');
+
+    // Memo input
+    const memoInput = card.querySelector('.memo-input');
+    if (memoInput) {
+      memoInput.addEventListener('change', () => {
+        const a = appState.alarms.find(a => a.id === alarm.id);
+        if (a) {
+          a.memo = memoInput.value;
+          saveState();
+          renderCards();
+        }
+      });
+    }
+
     expandBtn.addEventListener('click', () => {
       const a = appState.alarms.find(a => a.id === alarm.id);
       if (a) {

@@ -357,13 +357,19 @@ input:checked + .toggle-slider:before {
 
 .days-container {
   display: none;
-  gap: 6px;
-  justify-content: center;
+  flex-direction: column;
+  gap: 12px;
+  align-items: stretch;
   margin-top: 8px;
   cursor: pointer; /* 隙間でもポインターを維持 */
 }
 .days-container.show {
   display: flex;
+}
+.days-row {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
 }
 .day-btn {
   width: 32px;
@@ -384,5 +390,43 @@ input:checked + .toggle-slider:before {
 .day-btn.selected {
   background: var(--accent-color);
   color: white;
+  border-color: var(--accent-color);
+}
+
+.alarm-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0 4px;
+  margin-top: -8px;
+  margin-bottom: 12px;
+  font-size: 13px;
+  color: var(--text-color);
+  opacity: 0.8;
+}
+.summary-days {
+  color: var(--accent-color);
+  font-weight: bold;
+  font-size: 12px;
+}
+.summary-memo {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.memo-input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+}
+.memo-input:focus {
   border-color: var(--accent-color);
 }
