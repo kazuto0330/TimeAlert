@@ -143,6 +143,58 @@ body.theme-dark {
   margin-top: 40px;
 }
 
+/* アクティブヘッダー */
+.active-header-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background-color: var(--accent-color);
+  color: white;
+  margin: 16px 16px 0 16px;
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow);
+  flex-shrink: 0;
+}
+
+.active-header-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.active-header-title {
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.active-header-time {
+  font-size: 24px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.active-header-stop-btn {
+  background: white;
+  color: var(--accent-color);
+  border: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-bottom: 2px; /* アイコンの中心ずれを補正 */
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  transition: transform 0.1s;
+}
+
+.active-header-stop-btn:active {
+  transform: scale(0.95);
+}
+
 /* カードのデザイン */
 .card {
   background-color: var(--card-bg);

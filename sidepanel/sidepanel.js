@@ -101,6 +101,38 @@ document.addEventListener('DOMContentLoaded', async () => {
   const tabs = document.querySelectorAll('.tab-button');
   const addBtn = document.getElementById('add-btn');
   const cardList = document.getElementById('card-list');
+  const activeHeaderContainer = document.getElementById('active-header-container');
+  const activeHeaderTitle = document.getElementById('active-header-title');
+  const activeHeaderTime = document.getElementById('active-header-time');
+  const activeHeaderStopBtn = document.getElementById('active-header-stop-btn');
+
+  let activeItemToStop = null;
+
+  activeHeaderStopBtn.addEventListener('click', async () => {
+    if (!activeItemToStop) return;
+    if (currentTab === 'timer') {
+      const t = appState.timers.find(timer => timer.id === activeItemToStop.id);
+      if (t) {
+        t.state = 'idle';
+        const remaining = Math.max(0, Math.ceil((t.endTime - Date.now()) / 1000));
+        t.originalSeconds = remaining;
+        t.endTime = null;
+        await chrome.alarms.clear(t.id);
+        saveState();
+        chrome.runtime.sendMessage({ action: "stopAudio" }).catch(() => {});
+        renderCards();
+      }
+    } else if (currentTab === 'alarm') {
+      const a = appState.alarms.find(alarm => alarm.id === activeItemToStop.id);
+      if (a) {
+        a.enabled = false;
+        await chrome.alarms.clear(a.id);
+        saveState();
+        chrome.runtime.sendMessage({ action: "stopAudio" }).catch(() => {});
+        renderCards();
+      }
+    }
+  });
 
   // --- i18n Data & Functions ---
   const i18n = {
@@ -180,7 +212,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     theme: 'system',
     volume: 50,
     sound: 'sounds/Clock-Alarm01-1(Low-Loop).mp3',
-    autoEnableAlarm: true
+    autoEnableAlarm: true,
+    lastTab: 'timer'
   };
 
   // Load initial state
@@ -196,6 +229,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (data.alarms) appState.alarms = data.alarms;
   appState.settings = { ...defaultSettings, ...(data.settings || {}) };
   
+  currentTab = appState.settings.lastTab || 'timer';
+  tabs.forEach(t => {
+    if (t.dataset.tab === currentTab) {
+      t.classList.add('active');
+    } else {
+      t.classList.remove('active');
+    }
+  });
+
   applyTheme(appState.settings.theme);
   applyLanguage(appState.settings.language);
   
@@ -222,6 +264,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       tabs.forEach(t => t.classList.remove('active'));
       tab.classList.add('active');
       currentTab = tab.dataset.tab;
+      appState.settings.lastTab = currentTab;
+      saveState();
       renderCards();
     });
   });
@@ -277,9 +321,51 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
+  function updateActiveHeader() {
+    if (currentTab === 'timer') {
+      const runningTimers = appState.timers.filter(t => t.state === 'running');
+      if (runningTimers.length > 0) {
+        const shortestTimer = runningTimers.reduce((prev, curr) => (prev.endTime < curr.endTime ? prev : curr));
+        const remaining = Math.max(0, Math.ceil((shortestTimer.endTime - Date.now()) / 1000));
+        activeHeaderContainer.style.display = 'flex';
+        activeHeaderTitle.textContent = shortestTimer.title;
+        activeHeaderTime.textContent = formatSeconds(remaining);
+        activeItemToStop = shortestTimer;
+      } else {
+        activeHeaderContainer.style.display = 'none';
+        activeItemToStop = null;
+      }
+    } else if (currentTab === 'alarm') {
+      const activeAlarms = appState.alarms.filter(a => a.enabled);
+      let nextAlarm = null;
+      let minNextTime = Infinity;
+
+      activeAlarms.forEach(a => {
+        const nextTime = calculateNextAlarmTime(a.time, a.days);
+        if (nextTime && nextTime < minNextTime) {
+          minNextTime = nextTime;
+          nextAlarm = a;
+        }
+      });
+
+      if (nextAlarm && minNextTime !== Infinity) {
+        const remaining = Math.max(0, Math.ceil((minNextTime - Date.now()) / 1000));
+        activeHeaderContainer.style.display = 'flex';
+        activeHeaderTitle.textContent = nextAlarm.title;
+        activeHeaderTime.textContent = formatSeconds(remaining);
+        activeItemToStop = nextAlarm;
+      } else {
+        activeHeaderContainer.style.display = 'none';
+        activeItemToStop = null;
+      }
+    }
+  }
+
   function startUITimer() {
     if (timerInterval) clearInterval(timerInterval);
     timerInterval = setInterval(() => {
+      updateActiveHeader();
+      
       if (currentTab === 'timer') {
         const timeDisplays = document.querySelectorAll('.timer-card .time-display[data-running="true"]');
         timeDisplays.forEach(display => {
