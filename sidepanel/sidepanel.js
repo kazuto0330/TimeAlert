@@ -185,7 +185,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Load initial state
   const data = await chrome.storage.sync.get(['timers', 'alarms', 'settings']);
-  if (data.timers) appState.timers = data.timers;
+  if (data.timers) {
+    appState.timers = data.timers.map(t => {
+      if (t.initialSeconds === undefined) {
+        t.initialSeconds = t.originalSeconds;
+      }
+      return t;
+    });
+  }
   if (data.alarms) appState.alarms = data.alarms;
   appState.settings = { ...defaultSettings, ...(data.settings || {}) };
   
@@ -236,6 +243,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         id: generateId('timer'),
         title: `${dict.tabTimer}${maxNum + 1}`,
         originalSeconds: 0,
+        initialSeconds: 0,
         state: 'idle',
         endTime: null
       };
@@ -422,6 +430,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       displayTime = formatSeconds(remaining);
     }
 
+    const isChanged = timer.initialSeconds !== undefined && timer.originalSeconds !== timer.initialSeconds;
+    const showReset = isRunning || isChanged;
+
     card.innerHTML = `
       <div class="card-header">
         <input type="text" class="card-title" value="${timer.title}" readonly>
@@ -434,9 +445,14 @@ document.addEventListener('DOMContentLoaded', async () => {
           data-endtime="${timer.endTime || ''}"
           ${isRunning ? 'readonly' : ''}
         >
-        <button class="play-stop-btn ${isRunning ? 'stop' : 'play'}">
-          ${isRunning ? '⏹' : '▶'}
-        </button>
+        <div class="timer-controls" style="display: flex; gap: 8px;">
+          <button class="reset-btn play-stop-btn play" title="リセット" style="display: ${showReset ? 'flex' : 'none'};">
+            ↺
+          </button>
+          <button class="toggle-btn play-stop-btn ${isRunning ? 'stop' : 'play'}">
+            ${isRunning ? '⏹' : '▶'}
+          </button>
+        </div>
       </div>
     `;
 
@@ -456,9 +472,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         const seconds = parseTimeToSeconds(input);
         const t = appState.timers.find(t => t.id === timer.id);
         if (t) {
-          t.originalSeconds = seconds;
-          timeDisplay.value = formatSeconds(seconds);
-          saveState();
+          const isUnchanged = (input === timeDisplay.dataset.prevValue) || 
+                              (input === '' && timeDisplay.dataset.prevValue === '00:00');
+          if (!isUnchanged) {
+            t.initialSeconds = seconds;
+            t.originalSeconds = seconds;
+            timeDisplay.value = formatSeconds(seconds);
+            saveState();
+          } else {
+            timeDisplay.value = formatSeconds(t.originalSeconds);
+          }
         }
       }
     });
@@ -466,8 +489,24 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (e.key === 'Enter') timeDisplay.blur();
     });
 
+    // Reset toggle
+    const resetBtn = card.querySelector('.reset-btn');
+    resetBtn.addEventListener('click', async () => {
+      const t = appState.timers.find(t => t.id === timer.id);
+      if (!t) return;
+      
+      t.state = 'idle';
+      t.endTime = null;
+      if (t.initialSeconds !== undefined) {
+        t.originalSeconds = t.initialSeconds;
+      }
+      await chrome.alarms.clear(t.id);
+      saveState();
+      chrome.runtime.sendMessage({ action: "stopAudio" }).catch(() => {});
+    });
+
     // Play/Stop toggle
-    const playStopBtn = card.querySelector('.play-stop-btn');
+    const playStopBtn = card.querySelector('.toggle-btn');
     playStopBtn.addEventListener('click', async () => {
       const t = appState.timers.find(t => t.id === timer.id);
       if (!t) return;
