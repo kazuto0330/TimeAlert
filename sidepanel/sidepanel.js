@@ -653,115 +653,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     return card;
   }
 
-  // --- Settings & i18n Logic ---
+  // --- Settings Link Logic ---
 
   const settingsBtn = document.getElementById('settings-btn');
-  const closeSettingsBtn = document.getElementById('close-settings-btn');
-  const settingsModal = document.getElementById('settings-modal');
-
-  const langSelect = document.getElementById('setting-language');
-  const themeSelect = document.getElementById('setting-theme');
-  const volumeInput = document.getElementById('setting-volume');
-  const volumeVal = document.getElementById('volume-val');
-  const soundSelect = document.getElementById('setting-sound');
-  const uploadContainer = document.getElementById('upload-container');
-  const uploadInput = document.getElementById('setting-upload');
-  const uploadStatus = document.getElementById('upload-status');
-  const autoEnableCheckbox = document.getElementById('setting-auto-enable');
-
-  function updateSettingsUI() {
-    langSelect.value = appState.settings.language || 'system';
-    themeSelect.value = appState.settings.theme || 'system';
-    volumeInput.value = appState.settings.volume || 50;
-    volumeVal.textContent = volumeInput.value;
-    soundSelect.value = appState.settings.sound || 'sounds/Clock-Alarm01-1(Low-Loop).mp3';
-    autoEnableCheckbox.checked = appState.settings.autoEnableAlarm !== false;
-    
-    uploadContainer.style.display = soundSelect.value === 'custom' ? 'flex' : 'none';
-  }
-
   settingsBtn.addEventListener('click', () => {
-    updateSettingsUI();
-    settingsModal.classList.remove('hidden');
-  });
-
-  closeSettingsBtn.addEventListener('click', () => {
-    settingsModal.classList.add('hidden');
-  });
-
-  settingsModal.addEventListener('click', (e) => {
-    if (e.target === settingsModal) {
-      settingsModal.classList.add('hidden');
+    if (chrome.runtime.openOptionsPage) {
+      chrome.runtime.openOptionsPage();
+    } else {
+      window.open(chrome.runtime.getURL('settings/settings.html'));
     }
-  });
-
-  langSelect.addEventListener('change', () => {
-    appState.settings.language = langSelect.value;
-    applyLanguage(appState.settings.language);
-    saveState();
-  });
-
-  themeSelect.addEventListener('change', () => {
-    appState.settings.theme = themeSelect.value;
-    applyTheme(appState.settings.theme);
-    saveState();
-  });
-
-  volumeInput.addEventListener('input', () => {
-    volumeVal.textContent = volumeInput.value;
-  });
-
-  volumeInput.addEventListener('change', () => {
-    appState.settings.volume = parseInt(volumeInput.value, 10);
-    saveState();
-    // Test play sound with new volume
-    chrome.runtime.sendMessage({ action: "playAudio", url: null, volume: appState.settings.volume }).catch(() => {});
-    setTimeout(() => chrome.runtime.sendMessage({ action: "stopAudio" }).catch(() => {}), 1500);
-  });
-
-  soundSelect.addEventListener('change', () => {
-    appState.settings.sound = soundSelect.value;
-    uploadContainer.style.display = soundSelect.value === 'custom' ? 'flex' : 'none';
-    saveState();
-    
-    if (soundSelect.value !== 'custom') {
-      chrome.runtime.sendMessage({ action: "playAudio", url: null, volume: appState.settings.volume }).catch(() => {});
-      setTimeout(() => chrome.runtime.sendMessage({ action: "stopAudio" }).catch(() => {}), 1500);
-    }
-  });
-
-  uploadInput.addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    if (file.size > 5 * 1024 * 1024) {
-      uploadStatus.textContent = "ファイルサイズが5MBを超えています。";
-      uploadStatus.style.color = "#ff4444";
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      const dataUrl = event.target.result;
-      try {
-        await chrome.storage.local.set({ customSoundData: dataUrl });
-        uploadStatus.textContent = "アップロード成功！";
-        uploadStatus.style.color = "var(--accent-color)";
-        
-        chrome.runtime.sendMessage({ action: "playAudio", url: null, volume: appState.settings.volume }).catch(() => {});
-        setTimeout(() => chrome.runtime.sendMessage({ action: "stopAudio" }).catch(() => {}), 1500);
-      } catch (err) {
-        uploadStatus.textContent = "保存に失敗しました（容量制限の可能性があります）。";
-        uploadStatus.style.color = "#ff4444";
-        console.error(err);
-      }
-    };
-    reader.readAsDataURL(file);
-  });
-
-  autoEnableCheckbox.addEventListener('change', () => {
-    appState.settings.autoEnableAlarm = autoEnableCheckbox.checked;
-    saveState();
   });
 
 });

@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title data-i18n="settingsTitle">設定 - Time Alert</title>
+  <link rel="stylesheet" href="settings.css">
+</head>
+<body>
+  <div class="app-container">
+    <aside class="sidebar">
+      <h1 class="app-title">Time Alert</h1>
+      <nav class="nav-tabs">
+        <button class="nav-tab active" data-tab="general" data-i18n="tabGeneral">一般</button>
+        <button class="nav-tab" data-tab="appearance" data-i18n="tabAppearance">外観</button>
+        <button class="nav-tab" data-tab="sound" data-i18n="tabSound">サウンド</button>
+      </nav>
+    </aside>
+
+    <main class="main-content">
+      <header class="content-header">
+        <h2 id="current-tab-title" data-i18n="tabGeneral">一般</h2>
+      </header>
+      
+      <div class="tab-panels">
+        <!-- 一般タブ -->
+        <section class="tab-panel active" id="panel-general">
+          <div class="setting-card">
+            <h3 data-i18n="settingLanguage">言語 (Language)</h3>
+            <select id="setting-language">
+              <option value="system" data-i18n="optSystem">システムデフォルト (System Default)</option>
+              <option value="ja">日本語</option>
+              <option value="en">English</option>
+            </select>
+          </div>
+          
+          <div class="setting-card">
+            <div class="setting-header">
+              <h3 data-i18n="settingAutoEnable">アラーム時刻変更時に自動でONにする</h3>
+              <label class="toggle-switch">
+                <input type="checkbox" id="setting-auto-enable">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+            <p class="setting-desc" data-i18n="settingAutoEnableDesc">時刻を変更した際、自動的にアラームを有効化します。</p>
+          </div>
+        </section>
+
+        <!-- 外観タブ -->
+        <section class="tab-panel" id="panel-appearance">
+          <div class="setting-card">
+            <h3 data-i18n="settingTheme">テーマ</h3>
+            <select id="setting-theme">
+              <option value="system" data-i18n="optSystem">システムデフォルト</option>
+              <option value="light" data-i18n="optLight">ライトモード</option>
+              <option value="dark" data-i18n="optDark">ダークモード</option>
+            </select>
+          </div>
+        </section>
+
+        <!-- サウンドタブ -->
+        <section class="tab-panel" id="panel-sound">
+          <div class="setting-card">
+            <h3><span data-i18n="settingVolume">通知音の音量</span>: <span id="volume-val">50</span>%</h3>
+            <input type="range" id="setting-volume" min="0" max="100" value="50">
+          </div>
+          
+          <div class="setting-card">
+            <h3 data-i18n="settingSound">通知音</h3>
+            <select id="setting-sound">
+              <option value="../sounds/Clock-Alarm01-1(Low-Loop).mp3">Clock-Alarm01-1(Low-Loop)</option>
+              <option value="../sounds/Clock-Alarm01-2(Mid-Loop).mp3">Clock-Alarm01-2(Mid-Loop)</option>
+              <option value="../sounds/Clock-Alarm01-3(High-Loop).mp3">Clock-Alarm01-3(High-Loop)</option>
+              <option value="../sounds/Clock-Alarm01-4(Beep).mp3">Clock-Alarm01-4(Beep)</option>
+              <option value="custom" data-i18n="optCustom">オリジナル音源 (アップロード)</option>
+            </select>
+          </div>
+          
+          <div class="setting-card" id="upload-container" style="display: none;">
+            <h3 data-i18n="settingUpload">オリジナル音源をアップロード (5MB以下)</h3>
+            <input type="file" id="setting-upload" accept="audio/*" class="file-input">
+            <div id="upload-status" class="upload-status"></div>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+  <script src="settings.js"></script>
+</body>
+</html>

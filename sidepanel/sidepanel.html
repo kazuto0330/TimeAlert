@@ -28,65 +28,6 @@
 
     <!-- フローティングアクションボタン -->
     <button id="add-btn" class="fab">+</button>
-
-    <!-- 設定モーダル -->
-    <div id="settings-modal" class="modal-overlay hidden">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h2 data-i18n="settingsTitle">設定</h2>
-          <button id="close-settings-btn" class="close-btn">×</button>
-        </div>
-        <div class="modal-body">
-          <!-- 1. 言語切り替え -->
-          <div class="setting-item">
-            <label data-i18n="settingLanguage">言語 (Language)</label>
-            <select id="setting-language">
-              <option value="system" data-i18n="optSystem">システムデフォルト (System Default)</option>
-              <option value="ja">日本語</option>
-              <option value="en">English</option>
-            </select>
-          </div>
-          <!-- 2. テーマ切り替え -->
-          <div class="setting-item">
-            <label data-i18n="settingTheme">テーマ</label>
-            <select id="setting-theme">
-              <option value="system" data-i18n="optSystem">システムデフォルト</option>
-              <option value="light" data-i18n="optLight">ライトモード</option>
-              <option value="dark" data-i18n="optDark">ダークモード</option>
-            </select>
-          </div>
-          <!-- 3. 通知音の音量調整 -->
-          <div class="setting-item">
-            <label><span data-i18n="settingVolume">通知音の音量</span>: <span id="volume-val">50</span>%</label>
-            <input type="range" id="setting-volume" min="0" max="100" value="50">
-          </div>
-          <!-- 4. アラーム（通知）音の変更 -->
-          <div class="setting-item">
-            <label data-i18n="settingSound">通知音</label>
-            <select id="setting-sound">
-              <option value="sounds/Clock-Alarm01-1(Low-Loop).mp3">Clock-Alarm01-1(Low-Loop)</option>
-              <option value="sounds/Clock-Alarm01-2(Mid-Loop).mp3">Clock-Alarm01-2(Mid-Loop)</option>
-              <option value="sounds/Clock-Alarm01-3(High-Loop).mp3">Clock-Alarm01-3(High-Loop)</option>
-              <option value="sounds/Clock-Alarm01-4(Beep).mp3">Clock-Alarm01-4(Beep)</option>
-              <option value="custom" data-i18n="optCustom">オリジナル音源 (アップロード)</option>
-            </select>
-          </div>
-          <!-- 5. オリジナル通知音のアップロード -->
-          <div class="setting-item" id="upload-container" style="display: none;">
-            <label data-i18n="settingUpload">オリジナル音源をアップロード (5MB以下)</label>
-            <input type="file" id="setting-upload" accept="audio/*">
-            <div id="upload-status" class="upload-status"></div>
-          </div>
-          <!-- 6. アラーム時刻変更時の自動有効化 -->
-          <div class="setting-item">
-            <label class="checkbox-label">
-              <input type="checkbox" id="setting-auto-enable">
-              <span data-i18n="settingAutoEnable">アラーム時刻変更時に自動でONにする</span>
-            </label>
-          </div>
-        </div>
-      </div>
-    </div>
   </div>
 
   <script src="sidepanel.js"></script>

@@ -29,6 +29,11 @@
   "action": {
     "default_title": "Time Alert"
   },
+  "options_page": "settings/settings.html",
+  "options_ui": {
+    "page": "settings/settings.html",
+    "open_in_tab": true
+  },
   "web_accessible_resources": [
     {
       "resources": [
