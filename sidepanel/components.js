@@ -259,7 +259,7 @@ export function createAlarmCard(alarm, callbacks) {
       ${activeDaysText ? `<span class="summary-days">${activeDaysText}</span>` : ''}
       ${alarm.memo ? `<span class="summary-memo" title="${alarm.memo}">${alarm.memo}</span>` : ''}
     </div>` : ''}
-    <button class="expand-btn ${isExpanded ? 'expanded' : ''}">${isExpanded ? '▲ 詳細設定' : '▼ 詳細設定'}</button>
+    <button class="expand-btn ${isExpanded ? 'expanded' : ''}">${isExpanded ? '▲ ' + dict.advancedSettings : '▼ ' + dict.advancedSettings}</button>
     <div class="days-container ${isExpanded ? 'show' : ''}">
       <div class="days-row">
         ${daysOrder.map(d => `
@@ -268,7 +268,7 @@ export function createAlarmCard(alarm, callbacks) {
           </button>
         `).join('')}
       </div>
-      <input type="text" class="memo-input" placeholder="メモを追加..." value="${alarm.memo || ''}">
+      <input type="text" class="memo-input" placeholder="${dict.addMemo}" value="${alarm.memo || ''}">
     </div>
   `;
 
@@ -349,11 +349,11 @@ export function createAlarmCard(alarm, callbacks) {
       if (a.expanded) {
         expandBtn.classList.add('expanded');
         daysContainer.classList.add('show');
-        expandBtn.textContent = '▲ 詳細設定';
+        expandBtn.textContent = '▲ ' + dict.advancedSettings;
       } else {
         expandBtn.classList.remove('expanded');
         daysContainer.classList.remove('show');
-        expandBtn.textContent = '▼ 詳細設定';
+        expandBtn.textContent = '▼ ' + dict.advancedSettings;
       }
       saveState();
     }

@@ -14,7 +14,9 @@ export const i18n = {
     optCustom: "オリジナル音源 (アップロード)",
     settingUpload: "オリジナル音源をアップロード (5MB以下)",
     settingAutoEnable: "アラーム時刻変更時に自動でONにする",
-    days: ['日', '月', '火', '水', '木', '金', '土']
+    days: ['日', '月', '火', '水', '木', '金', '土'],
+    advancedSettings: "詳細設定",
+    addMemo: "メモを追加..."
   },
   en: {
     tabTimer: "Timer",
@@ -31,7 +33,9 @@ export const i18n = {
     optCustom: "Custom Audio (Upload)",
     settingUpload: "Upload Custom Audio (Max 5MB)",
     settingAutoEnable: "Auto-enable alarm on time change",
-    days: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+    days: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+    advancedSettings: "Advanced settings",
+    addMemo: "Add note..."
   }
 };
 
@@ -65,6 +69,20 @@ export function applyLanguage(langPref, cardList, renderCardsFn) {
     const key = el.dataset.i18n;
     if (dict[key]) {
       el.textContent = dict[key];
+    }
+  });
+  
+  document.querySelectorAll('[data-i18n-title]').forEach(el => {
+    const key = el.dataset.i18nTitle;
+    if (dict[key]) {
+      el.title = dict[key];
+    }
+  });
+  
+  document.querySelectorAll('[data-i18n-alt]').forEach(el => {
+    const key = el.dataset.i18nAlt;
+    if (dict[key]) {
+      el.alt = dict[key];
     }
   });
   
