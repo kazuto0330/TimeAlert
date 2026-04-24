@@ -298,3 +298,13 @@ input:checked + .toggle-slider:before {
   background-color: var(--bg-color);
   transform: scale(1.05);
 }
+
+.about-link {
+  color: var(--accent-color);
+  text-decoration: none;
+  font-weight: bold;
+}
+
+.about-link:hover {
+  text-decoration: underline;
+}

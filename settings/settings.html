@@ -12,18 +12,19 @@
     <aside class="sidebar">
       <h1 class="app-title">Time Alert</h1>
       <nav class="nav-tabs">
-        <button class="nav-tab active" data-tab="general" data-i18n="tabGeneral">一般</button>
+        <button class="nav-tab" data-tab="general" data-i18n="tabGeneral">一般</button>
         <button class="nav-tab" data-tab="appearance" data-i18n="tabAppearance">外観</button>
         <button class="nav-tab" data-tab="sound" data-i18n="tabSound">サウンド</button>
-      </nav>
-    </aside>
+        <button class="nav-tab" data-tab="about" data-i18n="tabAbout">概要</button>
+        </nav>
+        </aside>
 
-    <main class="main-content">
-      <header class="content-header">
+        <main class="main-content">
+        <header class="content-header">
         <h2 id="current-tab-title" data-i18n="tabGeneral">一般</h2>
-      </header>
-      
-      <div class="tab-panels">
+        </header>
+
+        <div class="tab-panels">
         <!-- 一般タブ -->
         <section class="tab-panel active" id="panel-general">
           <div class="setting-card">
@@ -84,6 +85,20 @@
             <h3 data-i18n="settingUpload">オリジナル音源をアップロード (5MB以下)</h3>
             <input type="file" id="setting-upload" accept="audio/*" class="file-input">
             <div id="upload-status" class="upload-status"></div>
+          </div>
+        </section>
+
+        <!-- 概要タブ -->
+        <section class="tab-panel" id="panel-about">
+          <div class="setting-card">
+            <h3 data-i18n="settingAboutLinks">リンク集</h3>
+            <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 8px;">
+              <a href="https://github.com/kazuto0330/TimeAlert" target="_blank" rel="noopener noreferrer" class="about-link">GitHub (TimeAlert)</a>
+              <div>
+                <a href="https://otologic.jp/free/se/clock01.html" target="_blank" rel="noopener noreferrer" class="about-link">タイマー・アラーム音 (OtoLogic)</a>
+                <p class="setting-desc" style="margin-top: 6px;" data-i18n="settingOtoLogicCredit">当拡張機能では、OtoLogicの素材を使用しています。</p>
+              </div>
+            </div>
           </div>
         </section>
       </div>

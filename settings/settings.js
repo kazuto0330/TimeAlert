@@ -195,8 +195,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const closeSettingsBtn = document.getElementById('close-settings-btn');
   if (closeSettingsBtn) {
-    closeSettingsBtn.addEventListener('click', () => {
-      window.close();
+    closeSettingsBtn.addEventListener('click', async () => {
+      const tabs = await chrome.tabs.query({ currentWindow: true });
+      if (tabs.length === 1) {
+        history.back();
+      } else {
+        window.close();
+      }
     });
   }
 
