@@ -285,10 +285,11 @@ export function createAlarmCard(alarm, callbacks) {
     const parsed = parseAlarmTime(timeDisplay.value);
     const a = appState.alarms.find(a => a.id === alarm.id);
     if (a) {
+      const isChanged = timeDisplay.dataset.prevValue !== parsed;
       a.time = parsed;
       timeDisplay.value = parsed;
       
-      if (appState.settings.autoEnableAlarm && inputVal !== "") {
+      if (appState.settings.autoEnableAlarm && isChanged && inputVal !== "") {
         a.enabled = true;
         card.querySelector('.alarm-toggle').checked = true;
         const nextTime = calculateNextAlarmTime(a.time, a.days);
@@ -322,6 +323,15 @@ export function createAlarmCard(alarm, callbacks) {
 
   const memoInput = card.querySelector('.memo-input');
   if (memoInput) {
+    memoInput.addEventListener('mousedown', () => {
+      card.draggable = false;
+    });
+    memoInput.addEventListener('focus', () => {
+      card.draggable = false;
+    });
+    memoInput.addEventListener('blur', () => {
+      card.draggable = true;
+    });
     memoInput.addEventListener('change', () => {
       const a = appState.alarms.find(a => a.id === alarm.id);
       if (a) {
