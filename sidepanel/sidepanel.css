@@ -79,12 +79,12 @@ body {
 }
 
 @media (prefers-color-scheme: dark) {
-  body.theme-system .settings-icon {
-    filter: invert(1);
+  body:not(.theme-light) .settings-icon {
+    filter: invert(1) brightness(1.5);
   }
 }
 body.theme-dark .settings-icon {
-  filter: invert(1);
+  filter: invert(1) brightness(1.5);
 }
 
 /* 強制テーマ設定用のクラス */
@@ -423,7 +423,7 @@ input:checked + .toggle-slider:before {
 .days-row {
   display: flex;
   gap: 6px;
-  justify-content: center;
+  justify-content: flex-start;
 }
 .day-btn {
   width: 32px;
@@ -502,4 +502,6 @@ input:checked + .toggle-slider:before {
 
 ::-webkit-scrollbar-thumb:hover {
   background-color: rgba(150, 150, 150, 0.7);
+}
+ba(150, 150, 150, 0.7);
 }
