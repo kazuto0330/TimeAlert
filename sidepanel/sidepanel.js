@@ -171,7 +171,7 @@ function updateActiveHeader() {
     let minNextTime = Infinity;
 
     activeAlarms.forEach(a => {
-      const nextTime = calculateNextAlarmTime(a.time, a.days);
+      const nextTime = calculateNextAlarmTime(a.time, a.days, a.skippedDate);
       if (nextTime && nextTime < minNextTime) {
         minNextTime = nextTime;
         nextAlarm = a;

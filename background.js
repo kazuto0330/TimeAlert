@@ -3,7 +3,7 @@
 let pendingToasts = []; // OS通知を出して、まだ画面上にポップアップを出せていないアラームのリスト
 
 // Utility: Calculate next alarm time
-function calculateNextAlarmTime(timeStr, days) {
+function calculateNextAlarmTime(timeStr, days, skippedDate = null) {
   const [h, m] = timeStr.split(':').map(Number);
   const now = new Date();
   const target = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m, 0, 0);
@@ -14,6 +14,12 @@ function calculateNextAlarmTime(timeStr, days) {
       if (i === 0 && checkDate.getTime() <= now.getTime()) {
         continue;
       }
+      
+      const checkDateStr = `${checkDate.getFullYear()}-${(checkDate.getMonth()+1).toString().padStart(2, '0')}-${checkDate.getDate().toString().padStart(2, '0')}`;
+      if (skippedDate === checkDateStr) {
+        continue;
+      }
+
       if (days.includes(checkDate.getDay())) {
         return checkDate.getTime();
       }
@@ -104,7 +110,7 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
       const updatedAlarms = data.alarms.map(al => {
         if (al.id === alarm.name) {
           if (al.days && al.days.length > 0) {
-            nextTime = calculateNextAlarmTime(al.time, al.days);
+            nextTime = calculateNextAlarmTime(al.time, al.days, al.skippedDate);
             return al; // 状態は維持（繰り返し）
           } else {
             return { ...al, enabled: false }; // 1回きりなので無効化

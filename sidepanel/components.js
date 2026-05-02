@@ -240,6 +240,13 @@ export function createAlarmCard(alarm, callbacks) {
     .map(d => daysLabels[d])
     .join(', ');
 
+  const now = new Date();
+  const todayStr = `${now.getFullYear()}-${(now.getMonth()+1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}`;
+  const [h, m] = alarm.time.split(':').map(Number);
+  const targetToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m, 0, 0);
+  const isScheduledToday = alarm.days && alarm.days.includes(now.getDay()) && targetToday.getTime() > now.getTime();
+  const canSkipToday = alarm.enabled && isScheduledToday && alarm.skippedDate !== todayStr;
+
   card.innerHTML = `
     <div class="card-header">
       <input type="text" class="card-title" value="${alarm.title}" readonly>
@@ -254,6 +261,10 @@ export function createAlarmCard(alarm, callbacks) {
         <span class="toggle-slider"></span>
       </label>
     </div>
+    ${canSkipToday ? `
+    <div class="skip-container" style="text-align: left; padding: 0 4px; margin-top: -4px; margin-bottom: 8px;">
+      <span class="skip-btn" style="font-size: 12px; color: var(--accent-color); cursor: pointer; text-decoration: none; font-weight: bold;">今日をスキップ</span>
+    </div>` : ''}
     ${(!isExpanded && (activeDaysText || alarm.memo)) ? `
     <div class="alarm-summary">
       ${activeDaysText ? `<span class="summary-days">${activeDaysText}</span>` : ''}
@@ -292,7 +303,7 @@ export function createAlarmCard(alarm, callbacks) {
       if (appState.settings.autoEnableAlarm && isChanged && inputVal !== "") {
         a.enabled = true;
         card.querySelector('.alarm-toggle').checked = true;
-        const nextTime = calculateNextAlarmTime(a.time, a.days);
+        const nextTime = calculateNextAlarmTime(a.time, a.days, a.skippedDate);
         if (nextTime) {
           await chrome.alarms.create(a.id, { when: nextTime });
         } else {
@@ -301,7 +312,7 @@ export function createAlarmCard(alarm, callbacks) {
         }
       } else {
         if (a.enabled) {
-          const nextTime = calculateNextAlarmTime(a.time, a.days);
+          const nextTime = calculateNextAlarmTime(a.time, a.days, a.skippedDate);
           if (nextTime) {
             await chrome.alarms.create(a.id, { when: nextTime });
           } else {
@@ -374,7 +385,7 @@ export function createAlarmCard(alarm, callbacks) {
           btn.classList.add('selected');
         }
         if (a.enabled) {
-          const nextTime = calculateNextAlarmTime(a.time, a.days);
+          const nextTime = calculateNextAlarmTime(a.time, a.days, a.skippedDate);
           if (nextTime) {
             await chrome.alarms.create(a.id, { when: nextTime });
           } else {
@@ -395,7 +406,7 @@ export function createAlarmCard(alarm, callbacks) {
     a.enabled = e.target.checked;
     
     if (a.enabled) {
-      const nextTime = calculateNextAlarmTime(a.time, a.days);
+      const nextTime = calculateNextAlarmTime(a.time, a.days, a.skippedDate);
       if (nextTime) {
         await chrome.alarms.create(a.id, { when: nextTime });
       } else {
@@ -403,11 +414,34 @@ export function createAlarmCard(alarm, callbacks) {
         e.target.checked = false;
       }
     } else {
+      a.skippedDate = null;
       await chrome.alarms.clear(a.id);
       chrome.runtime.sendMessage({ action: "stopAudio" }).catch(() => {});
     }
     saveState();
+    if (callbacks && callbacks.renderCards) callbacks.renderCards();
   });
+
+  const skipBtn = card.querySelector('.skip-btn');
+  if (skipBtn) {
+    skipBtn.addEventListener('click', async () => {
+      const a = appState.alarms.find(a => a.id === alarm.id);
+      if (a) {
+        const now = new Date();
+        a.skippedDate = `${now.getFullYear()}-${(now.getMonth()+1).toString().padStart(2, '0')}-${now.getDate().toString().padStart(2, '0')}`;
+        const nextTime = calculateNextAlarmTime(a.time, a.days, a.skippedDate);
+        if (nextTime) {
+          await chrome.alarms.create(a.id, { when: nextTime });
+        } else {
+          a.enabled = false;
+          card.querySelector('.alarm-toggle').checked = false;
+          await chrome.alarms.clear(a.id);
+        }
+        saveState();
+        if (callbacks && callbacks.renderCards) callbacks.renderCards();
+      }
+    });
+  }
 
   return card;
 }

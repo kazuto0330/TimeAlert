@@ -63,7 +63,7 @@ export function parseAlarmTime(input) {
   return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
 }
 
-export function calculateNextAlarmTime(timeStr, days) {
+export function calculateNextAlarmTime(timeStr, days, skippedDate = null) {
   const [h, m] = timeStr.split(':').map(Number);
   const now = new Date();
   const target = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m, 0, 0);
@@ -74,6 +74,12 @@ export function calculateNextAlarmTime(timeStr, days) {
       if (i === 0 && checkDate.getTime() <= now.getTime()) {
         continue;
       }
+      
+      const checkDateStr = `${checkDate.getFullYear()}-${(checkDate.getMonth()+1).toString().padStart(2, '0')}-${checkDate.getDate().toString().padStart(2, '0')}`;
+      if (skippedDate === checkDateStr) {
+        continue;
+      }
+
       if (days.includes(checkDate.getDay())) {
         return checkDate.getTime();
       }
