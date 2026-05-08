@@ -233,8 +233,12 @@ chrome.notifications.onButtonClicked.addListener((notificationId, buttonIndex) =
   }
 });
 
-// システム通知の本体がクリックされた場合（Chromeを最前面にする）
+// システム通知の本体がクリックされた場合（Chromeを最前面にしつつアラームを停止する）
 chrome.notifications.onClicked.addListener((notificationId) => {
+  console.log("Notification clicked and stopped:", notificationId);
+  pendingToasts = pendingToasts.filter(t => t.alarmId !== notificationId);
+  chrome.runtime.sendMessage({ action: "stopAudio" }).catch(() => {});
+
   chrome.windows.getLastFocused({ populate: false }, (window) => {
     if (window && window.id !== chrome.windows.WINDOW_ID_NONE) {
       chrome.windows.update(window.id, { focused: true }).catch(() => {});
