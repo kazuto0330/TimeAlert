@@ -51,6 +51,13 @@ chrome.tabs.onActivated.addListener(() => {
   checkAndShowPendingToasts();
 });
 
+// タブが更新されたとき（ページの読み込み完了など）の処理
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (changeInfo.status === 'complete' && tab.active) {
+    checkAndShowPendingToasts();
+  }
+});
+
 // pendingToastsが存在する場合、現在のアクティブタブにポップアップを表示する
 function checkAndShowPendingToasts() {
   if (pendingToasts.length === 0) return;
@@ -127,23 +134,32 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
   }
 
   // 通知の表示処理
-  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-    if (tabs.length > 0) {
-      const activeTab = tabs[0];
-      if (activeTab.url && !activeTab.url.startsWith('chrome://') && !activeTab.url.startsWith('chrome-extension://')) {
-        chrome.tabs.sendMessage(activeTab.id, { 
-          action: "showNotification", 
-          alarmId: notificationTitle
-        }).catch(err => {
-          console.warn("Content script not ready, fallback to system notification.", err);
+  chrome.windows.getAll({ populate: false }, (windows) => {
+    const focusedWindow = windows.find(w => w.focused);
+    if (focusedWindow) {
+      chrome.tabs.query({ active: true, windowId: focusedWindow.id }, (tabs) => {
+        if (tabs.length > 0) {
+          const activeTab = tabs[0];
+          if (activeTab.url && !activeTab.url.startsWith('chrome://') && !activeTab.url.startsWith('chrome-extension://')) {
+            chrome.tabs.sendMessage(activeTab.id, { 
+              action: "showNotification", 
+              alarmId: notificationTitle
+            }).catch(err => {
+              console.warn("Content script not ready, fallback to system notification.", err);
+              showSystemNotification(alarm.name, notificationTitle);
+              addPendingToast(alarm.name, notificationTitle);
+            });
+          } else {
+            showSystemNotification(alarm.name, notificationTitle);
+            addPendingToast(alarm.name, notificationTitle);
+          }
+        } else {
           showSystemNotification(alarm.name, notificationTitle);
           addPendingToast(alarm.name, notificationTitle);
-        });
-      } else {
-        showSystemNotification(alarm.name, notificationTitle);
-        addPendingToast(alarm.name, notificationTitle);
-      }
+        }
+      });
     } else {
+      // ブラウザがどのウィンドウもアクティブでない場合
       showSystemNotification(alarm.name, notificationTitle);
       addPendingToast(alarm.name, notificationTitle);
     }
@@ -215,6 +231,15 @@ chrome.notifications.onButtonClicked.addListener((notificationId, buttonIndex) =
     pendingToasts = pendingToasts.filter(t => t.alarmId !== notificationId);
     chrome.runtime.sendMessage({ action: "stopAudio" }).catch(() => {});
   }
+});
+
+// システム通知の本体がクリックされた場合（Chromeを最前面にする）
+chrome.notifications.onClicked.addListener((notificationId) => {
+  chrome.windows.getLastFocused({ populate: false }, (window) => {
+    if (window && window.id !== chrome.windows.WINDOW_ID_NONE) {
+      chrome.windows.update(window.id, { focused: true }).catch(() => {});
+    }
+  });
 });
 
 // システム通知が（ボタンではなく）閉じられた場合
