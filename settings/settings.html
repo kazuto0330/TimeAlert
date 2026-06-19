@@ -57,6 +57,39 @@
             </div>
             <p class="setting-desc" data-i18n="settingAutoEnableTimerDesc">時間を変更した際、自動的にタイマーを有効化します。</p>
           </div>
+
+          <div class="setting-card">
+            <h3 data-i18n="settingBackup">データのインポート・エクスポート</h3>
+            <div class="backup-section">
+              <!-- インポート (左側) -->
+              <div class="backup-group">
+                <label data-i18n="importFile">インポートファイル (.json)</label>
+                <input type="file" id="import-file-input" accept=".json" class="file-input">
+                <div class="overwrite-option-container" style="display: flex; align-items: center; gap: 12px; margin: 4px 0 8px 0;">
+                  <label class="toggle-switch">
+                    <input type="checkbox" id="import-overwrite-checkbox" checked>
+                    <span class="toggle-slider"></span>
+                  </label>
+                  <span data-i18n="importOverwrite" style="font-size: 14px;">既存データを上書きする</span>
+                </div>
+                <button id="import-btn" class="preview-btn" data-i18n="btnImport">インポート</button>
+              </div>
+              
+              <div class="backup-vertical-divider"></div>
+
+              <!-- エクスポート (右側) -->
+              <div class="backup-group">
+                <label data-i18n="exportTarget">エクスポート対象</label>
+                <select id="export-target">
+                  <option value="all" data-i18n="optExportAll">すべて（タイマー＆アラーム）</option>
+                  <option value="timers" data-i18n="optExportTimers">タイマーのみ</option>
+                  <option value="alarms" data-i18n="optExportAlarms">アラームのみ</option>
+                </select>
+                <button id="export-btn" class="preview-btn" data-i18n="btnExport">エクスポート</button>
+              </div>
+            </div>
+            <div id="backup-status" class="upload-status" style="margin-top: 12px;"></div>
+          </div>
         </section>
 
         <!-- 外観タブ -->
@@ -115,6 +148,6 @@
       </div>
     </main>
   </div>
-  <script src="settings.js"></script>
+  <script type="module" src="settings.js"></script>
 </body>
 </html>

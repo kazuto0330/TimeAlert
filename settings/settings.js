@@ -1,3 +1,5 @@
+import { generateId, calculateNextAlarmTime } from '../sidepanel/utils.js';
+
 document.addEventListener('DOMContentLoaded', async () => {
   const i18n = {
     ja: {
@@ -23,7 +25,22 @@ document.addEventListener('DOMContentLoaded', async () => {
       settingOtoLogicCredit: "当拡張機能では、OtoLogicの素材を使用しています。",
       uploadSizeError: "ファイルサイズが5MBを超えています。",
       uploadSuccess: "アップロード成功！",
-      uploadFail: "保存に失敗しました（容量制限の可能性があります）。"
+      uploadFail: "保存に失敗しました（容量制限の可能性があります）。",
+      settingBackup: "データのインポート・エクスポート",
+      exportTarget: "エクスポート対象",
+      optExportAll: "すべて（タイマー＆アラーム）",
+      optExportTimers: "タイマーのみ",
+      optExportAlarms: "アラームのみ",
+      btnExport: "エクスポート",
+      importFile: "インポートファイル (.json)",
+      btnImport: "インポート",
+      importConfirm: "インポートを実行すると、対象の既存データは削除・上書きされます。よろしいですか？",
+      importConfirmMerge: "インポートを実行すると、対象のデータが追加（マージ）されます。よろしいですか？",
+      importOverwrite: "既存データを上書きする（OFFの場合は追加）",
+      importSuccess: "データのインポートが完了しました！",
+      importInvalidFile: "無効なバックアップファイル形式です。",
+      importNoFile: "インポートするファイルを選択してください。",
+      exportSuccess: "エクスポートが完了しました。"
       },
       en: {
       settingsTitle: "Settings - Time Alert",
@@ -48,7 +65,22 @@ document.addEventListener('DOMContentLoaded', async () => {
       settingOtoLogicCredit: "This extension uses sound materials from OtoLogic.",
       uploadSizeError: "File size exceeds 5MB.",
       uploadSuccess: "Upload successful!",
-      uploadFail: "Failed to save (storage limit may have been reached)."
+      uploadFail: "Failed to save (storage limit may have been reached).",
+      settingBackup: "Data Import/Export",
+      exportTarget: "Export Target",
+      optExportAll: "All (Timers & Alarms)",
+      optExportTimers: "Timers Only",
+      optExportAlarms: "Alarms Only",
+      btnExport: "Export",
+      importFile: "Import File (.json)",
+      btnImport: "Import",
+      importConfirm: "Importing will overwrite and delete the existing corresponding data. Are you sure?",
+      importConfirmMerge: "Importing will append and merge the data with your existing data. Are you sure?",
+      importOverwrite: "Overwrite existing data (uncheck to merge)",
+      importSuccess: "Data imported successfully!",
+      importInvalidFile: "Invalid backup file format.",
+      importNoFile: "Please select a file to import.",
+      exportSuccess: "Export completed successfully."
       }
   };
 
@@ -266,5 +298,186 @@ document.addEventListener('DOMContentLoaded', async () => {
   autoEnableTimerCheckbox.addEventListener('change', () => {
     appSettings.autoEnableTimer = autoEnableTimerCheckbox.checked;
     saveSettings();
+  });
+
+  // UI Elements for Backup
+  const exportTargetSelect = document.getElementById('export-target');
+  const exportBtn = document.getElementById('export-btn');
+  const importFileInput = document.getElementById('import-file-input');
+  const importBtn = document.getElementById('import-btn');
+  const backupStatus = document.getElementById('backup-status');
+
+  // Helper to get active dict
+  function getDict() {
+    const lang = appSettings.language === 'system' || !appSettings.language
+      ? (navigator.language.startsWith('ja') ? 'ja' : 'en')
+      : appSettings.language;
+    return i18n[lang] || i18n.en;
+  }
+
+  exportBtn.addEventListener('click', async () => {
+    const dict = getDict();
+    backupStatus.textContent = '';
+    
+    try {
+      const data = await chrome.storage.sync.get(['timers', 'alarms']);
+      const target = exportTargetSelect.value;
+      const exportData = {};
+
+      if (target === 'all' || target === 'timers') {
+        exportData.timers = data.timers || [];
+      }
+      if (target === 'all' || target === 'alarms') {
+        exportData.alarms = data.alarms || [];
+      }
+
+      // Add format meta
+      exportData.exportedAt = new Date().toISOString();
+      exportData.source = "TimeAlert";
+
+      const jsonStr = JSON.stringify(exportData, null, 2);
+      const blob = new Blob([jsonStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `time_alert_backup_${target}_${new Date().toISOString().slice(0,10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      backupStatus.textContent = dict.exportSuccess;
+      backupStatus.style.color = "var(--accent-color)";
+    } catch (err) {
+      console.error(err);
+      backupStatus.textContent = err.message || "Export failed";
+      backupStatus.style.color = "#ff4444";
+    }
+  });
+
+  importBtn.addEventListener('click', () => {
+    const dict = getDict();
+    backupStatus.textContent = '';
+    
+    const file = importFileInput.files[0];
+    if (!file) {
+      backupStatus.textContent = dict.importNoFile;
+      backupStatus.style.color = "#ff4444";
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        const json = JSON.parse(e.target.result);
+        
+        // Validation: Must be from TimeAlert and contain timers or alarms
+        if (json.source !== "TimeAlert" || (!json.timers && !json.alarms)) {
+          backupStatus.textContent = dict.importInvalidFile;
+          backupStatus.style.color = "#ff4444";
+          return;
+        }
+
+        const overwrite = document.getElementById('import-overwrite-checkbox').checked;
+        const confirmMessage = overwrite ? dict.importConfirm : dict.importConfirmMerge;
+        if (!confirm(confirmMessage)) {
+          return;
+        }
+
+        // Get current state
+        const currentState = await chrome.storage.sync.get(['timers', 'alarms']);
+        const updatedState = { ...currentState };
+
+        if (overwrite) {
+          // Clear all current alarms
+          await chrome.alarms.clearAll();
+
+          if (json.timers) {
+            updatedState.timers = json.timers;
+            // Schedule imported running timers
+            for (const t of json.timers) {
+              if (t.state === 'running') {
+                const remaining = t.endTime - Date.now();
+                if (remaining > 0) {
+                  await chrome.alarms.create(t.id, { when: t.endTime });
+                } else {
+                  t.state = 'idle';
+                  t.endTime = null;
+                  t.originalSeconds = 0;
+                }
+              }
+            }
+          }
+          
+          if (json.alarms) {
+            updatedState.alarms = json.alarms;
+            // Schedule imported enabled alarms
+            for (const a of json.alarms) {
+              if (a.enabled) {
+                const nextTime = calculateNextAlarmTime(a.time, a.days, a.skippedDate);
+                if (nextTime) {
+                  await chrome.alarms.create(a.id, { when: nextTime });
+                } else {
+                  a.enabled = false;
+                }
+              }
+            }
+          }
+        } else {
+          // Merge (append)
+          if (json.timers) {
+            const currentTimers = currentState.timers || [];
+            const newTimers = [];
+            for (const t of json.timers) {
+              const newId = generateId('timer');
+              t.id = newId;
+              if (t.state === 'running') {
+                const remaining = t.endTime - Date.now();
+                if (remaining > 0) {
+                  await chrome.alarms.create(newId, { when: t.endTime });
+                } else {
+                  t.state = 'idle';
+                  t.endTime = null;
+                  t.originalSeconds = 0;
+                }
+              }
+              newTimers.push(t);
+            }
+            updatedState.timers = [...currentTimers, ...newTimers];
+          }
+
+          if (json.alarms) {
+            const currentAlarms = currentState.alarms || [];
+            const newAlarms = [];
+            for (const a of json.alarms) {
+              const newId = generateId('alarm');
+              a.id = newId;
+              if (a.enabled) {
+                const nextTime = calculateNextAlarmTime(a.time, a.days, a.skippedDate);
+                if (nextTime) {
+                  await chrome.alarms.create(newId, { when: nextTime });
+                } else {
+                  a.enabled = false;
+                }
+              }
+              newAlarms.push(a);
+            }
+            updatedState.alarms = [...currentAlarms, ...newAlarms];
+          }
+        }
+
+        await chrome.storage.sync.set(updatedState);
+        
+        backupStatus.textContent = dict.importSuccess;
+        backupStatus.style.color = "var(--accent-color)";
+        importFileInput.value = ''; // clear file input
+      } catch (err) {
+        console.error(err);
+        backupStatus.textContent = dict.importInvalidFile;
+        backupStatus.style.color = "#ff4444";
+      }
+    };
+    reader.readAsText(file);
   });
 });

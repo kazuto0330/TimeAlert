@@ -1,5 +1,16 @@
 // Service Worker: アラームの監視や通知の制御を行う
 
+const i18n = {
+  ja: {
+    timeUp: "時間になりました！",
+    stop: "ストップ"
+  },
+  en: {
+    timeUp: "Time is up!",
+    stop: "Stop"
+  }
+};
+
 let pendingToasts = []; // OS通知を出して、まだ画面上にポップアップを出せていないアラームのリスト
 
 // Utility: Calculate next alarm time
@@ -94,7 +105,15 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
 
   await playAudio();
 
-  let notificationTitle = "時間になりました！";
+  const settingsData = await chrome.storage.sync.get('settings');
+  const langPref = settingsData.settings?.language || 'system';
+  let lang = langPref;
+  if (lang === 'system' || !lang) {
+    lang = navigator.language.startsWith('ja') ? 'ja' : 'en';
+  }
+  const dict = i18n[lang] || i18n.en;
+
+  let notificationTitle = dict.timeUp;
 
   if (alarm.name.startsWith('timer_')) {
     const data = await chrome.storage.sync.get('timers');
@@ -213,13 +232,21 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 });
 
 // システム通知を表示する
-function showSystemNotification(alarmId, title) {
+async function showSystemNotification(alarmId, title) {
+  const settingsData = await chrome.storage.sync.get('settings');
+  const langPref = settingsData.settings?.language || 'system';
+  let lang = langPref;
+  if (lang === 'system' || !lang) {
+    lang = navigator.language.startsWith('ja') ? 'ja' : 'en';
+  }
+  const dict = i18n[lang] || i18n.en;
+
   chrome.notifications.create(alarmId, {
     type: "basic",
     iconUrl: "icons/icon128.png",
     title: "Time Alert",
     message: title,
-    buttons: [{ title: "ストップ" }],
+    buttons: [{ title: dict.stop }],
     requireInteraction: true
   });
 }

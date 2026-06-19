@@ -9,7 +9,26 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   return true;
 });
 
-function showToastNotification(title) {
+const i18n = {
+  ja: {
+    timeUp: "時間になりました！",
+    stop: "ストップ"
+  },
+  en: {
+    timeUp: "Time is up!",
+    stop: "Stop"
+  }
+};
+
+async function showToastNotification(title) {
+  const settingsData = await chrome.storage.sync.get('settings');
+  const langPref = settingsData.settings?.language || 'system';
+  let lang = langPref;
+  if (lang === 'system' || !lang) {
+    lang = navigator.language.startsWith('ja') ? 'ja' : 'en';
+  }
+  const dict = i18n[lang] || i18n.en;
+
   // 既に通知が存在する場合は削除
   const existingToast = document.getElementById('time-alert-toast');
   if (existingToast) {
@@ -26,9 +45,9 @@ function showToastNotification(title) {
       <div class="ta-toast-icon">⏰</div>
       <div class="ta-toast-text">
         <div class="ta-toast-title">Time Alert</div>
-        <div class="ta-toast-message">${title || "時間になりました！"}</div>
+        <div class="ta-toast-message">${title || dict.timeUp}</div>
       </div>
-      <button class="ta-toast-stop-btn">ストップ</button>
+      <button class="ta-toast-stop-btn">${dict.stop}</button>
     </div>
   `;
 
