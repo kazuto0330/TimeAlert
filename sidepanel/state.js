@@ -14,9 +14,14 @@ export const i18n = {
     optCustom: "オリジナル音源 (アップロード)",
     settingUpload: "オリジナル音源をアップロード (5MB以下)",
     settingAutoEnable: "アラーム時刻変更時に自動でONにする",
+    settingAutoEnableTimer: "タイマー時間変更時に自動でONにする",
     days: ['日', '月', '火', '水', '木', '金', '土'],
     advancedSettings: "詳細設定",
-    addMemo: "メモを追加..."
+    addMemo: "メモを追加...",
+    delete: "削除",
+    reset: "リセット",
+    skipToday: "今日をスキップ",
+    untitled: "名称未設定"
   },
   en: {
     tabTimer: "Timer",
@@ -33,9 +38,14 @@ export const i18n = {
     optCustom: "Custom Audio (Upload)",
     settingUpload: "Upload Custom Audio (Max 5MB)",
     settingAutoEnable: "Auto-enable alarm on time change",
+    settingAutoEnableTimer: "Auto-enable timer on time change",
     days: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
     advancedSettings: "Advanced settings",
-    addMemo: "Add note..."
+    addMemo: "Add note...",
+    delete: "Delete",
+    reset: "Reset",
+    skipToday: "Skip Today",
+    untitled: "Untitled"
   }
 };
 
@@ -45,6 +55,7 @@ export const defaultSettings = {
   volume: 50,
   sound: 'sounds/Clock-Alarm01-1(Low-Loop).mp3',
   autoEnableAlarm: true,
+  autoEnableTimer: true,
   lastTab: 'timer'
 };
 

@@ -4,6 +4,11 @@ import { appState, saveState, i18n } from './state.js';
 let draggedCardId = null;
 
 export function setupCardCommonEvents(card, item, tab) {
+  const lang = appState.settings.language === 'system' || !appState.settings.language 
+    ? (navigator.language.startsWith('ja') ? 'ja' : 'en') 
+    : appState.settings.language;
+  const dict = i18n[lang] || i18n.en;
+
   // Title editing (Single Click)
   const titleInput = card.querySelector('.card-title');
   titleInput.addEventListener('click', () => {
@@ -14,7 +19,7 @@ export function setupCardCommonEvents(card, item, tab) {
   titleInput.addEventListener('blur', () => {
     titleInput.readOnly = true;
     card.draggable = true;
-    const newTitle = titleInput.value.trim() || '名称未設定';
+    const newTitle = titleInput.value.trim() || dict.untitled;
     titleInput.value = newTitle;
     const list = tab === 'timer' ? appState.timers : appState.alarms;
     const t = list.find(t => t.id === item.id);
@@ -121,10 +126,15 @@ export function createTimerCard(timer) {
   const isChanged = timer.initialSeconds !== undefined && timer.originalSeconds !== timer.initialSeconds;
   const showReset = isRunning || isChanged;
 
+  const lang = appState.settings.language === 'system' || !appState.settings.language 
+    ? (navigator.language.startsWith('ja') ? 'ja' : 'en') 
+    : appState.settings.language;
+  const dict = i18n[lang] || i18n.en;
+
   card.innerHTML = `
     <div class="card-header">
       <input type="text" class="card-title" value="${timer.title}" readonly>
-      <button class="delete-btn" title="削除">×</button>
+      <button class="delete-btn" title="${dict.delete}">×</button>
     </div>
     <div class="card-body">
       <input type="text" class="time-display" 
@@ -134,7 +144,7 @@ export function createTimerCard(timer) {
         ${isRunning ? 'readonly' : ''}
       >
       <div class="timer-controls" style="display: flex; gap: 8px;">
-        <button class="reset-btn play-stop-btn play" title="リセット" style="display: ${showReset ? 'flex' : 'none'};">
+        <button class="reset-btn play-stop-btn play" title="${dict.reset}" style="display: ${showReset ? 'flex' : 'none'};">
           ↺
         </button>
         <button class="toggle-btn play-stop-btn ${isRunning ? 'stop' : 'play'}">
@@ -153,7 +163,7 @@ export function createTimerCard(timer) {
       if (timer.originalSeconds === 0) timeDisplay.value = '';
     }
   });
-  timeDisplay.addEventListener('blur', () => {
+  timeDisplay.addEventListener('blur', async () => {
     if (!isRunning) {
       card.draggable = true;
       const input = timeDisplay.value;
@@ -166,6 +176,12 @@ export function createTimerCard(timer) {
           t.initialSeconds = seconds;
           t.originalSeconds = seconds;
           timeDisplay.value = formatSeconds(seconds);
+          
+          if (appState.settings.autoEnableTimer && seconds > 0) {
+            t.state = 'running';
+            t.endTime = Date.now() + seconds * 1000;
+            await chrome.alarms.create(t.id, { when: t.endTime });
+          }
           saveState();
         } else {
           timeDisplay.value = formatSeconds(t.originalSeconds);
@@ -246,11 +262,10 @@ export function createAlarmCard(alarm, callbacks) {
   const targetToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m, 0, 0);
   const isScheduledToday = alarm.days && alarm.days.includes(now.getDay()) && targetToday.getTime() > now.getTime();
   const canSkipToday = alarm.enabled && isScheduledToday && alarm.skippedDate !== todayStr;
-
   card.innerHTML = `
     <div class="card-header">
       <input type="text" class="card-title" value="${alarm.title}" readonly>
-      <button class="delete-btn" title="削除">×</button>
+      <button class="delete-btn" title="${dict.delete}">×</button>
     </div>
     <div class="card-body">
       <input type="text" class="time-display alarm-time-input" 
@@ -263,7 +278,7 @@ export function createAlarmCard(alarm, callbacks) {
     </div>
     ${canSkipToday ? `
     <div class="skip-container" style="text-align: left; padding: 0 4px; margin-top: -4px; margin-bottom: 8px;">
-      <span class="skip-btn" style="font-size: 12px; color: var(--accent-color); cursor: pointer; text-decoration: none; font-weight: bold;">今日をスキップ</span>
+      <span class="skip-btn" style="font-size: 12px; color: var(--accent-color); cursor: pointer; text-decoration: none; font-weight: bold;">${dict.skipToday}</span>
     </div>` : ''}
     ${(!isExpanded && (activeDaysText || alarm.memo)) ? `
     <div class="alarm-summary">

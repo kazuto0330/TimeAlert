@@ -5,6 +5,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       tabGeneral: "一般",
       tabAppearance: "外観",
       tabSound: "サウンド",
+      tabAbout: "概要",
       settingLanguage: "言語 (Language)",
       optSystem: "システムデフォルト (System Default)",
       settingTheme: "テーマ",
@@ -15,13 +16,21 @@ document.addEventListener('DOMContentLoaded', async () => {
       optCustom: "オリジナル音源 (アップロード)",
       settingUpload: "オリジナル音源をアップロード (5MB以下)",
       settingAutoEnable: "アラーム時刻変更時に自動でONにする",
-      settingAutoEnableDesc: "時刻を変更した際、自動的にアラームを有効化します。"
+      settingAutoEnableDesc: "時刻を変更した際、自動的にアラームを有効化します。",
+      settingAutoEnableTimer: "タイマー時間変更時に自動でONにする",
+      settingAutoEnableTimerDesc: "時間を変更した際、自動的にタイマーを有効化します。",
+      settingAboutLinks: "リンク集",
+      settingOtoLogicCredit: "当拡張機能では、OtoLogicの素材を使用しています。",
+      uploadSizeError: "ファイルサイズが5MBを超えています。",
+      uploadSuccess: "アップロード成功！",
+      uploadFail: "保存に失敗しました（容量制限の可能性があります）。"
       },
       en: {
       settingsTitle: "Settings - Time Alert",
       tabGeneral: "General",
       tabAppearance: "Appearance",
       tabSound: "Sound",
+      tabAbout: "About",
       settingLanguage: "Language",
       optSystem: "System Default",
       settingTheme: "Theme",
@@ -32,7 +41,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       optCustom: "Custom Audio (Upload)",
       settingUpload: "Upload Custom Audio (Max 5MB)",
       settingAutoEnable: "Auto-enable alarm on time change",
-      settingAutoEnableDesc: "Automatically enables the alarm when the time is modified."
+      settingAutoEnableDesc: "Automatically enables the alarm when the time is modified.",
+      settingAutoEnableTimer: "Auto-enable timer on time change",
+      settingAutoEnableTimerDesc: "Automatically enables the timer when the time is modified.",
+      settingAboutLinks: "Links",
+      settingOtoLogicCredit: "This extension uses sound materials from OtoLogic.",
+      uploadSizeError: "File size exceeds 5MB.",
+      uploadSuccess: "Upload successful!",
+      uploadFail: "Failed to save (storage limit may have been reached)."
       }
   };
 
@@ -41,7 +57,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     theme: 'system',
     volume: 50,
     sound: 'sounds/Clock-Alarm01-1(Low-Loop).mp3',
-    autoEnableAlarm: true
+    autoEnableAlarm: true,
+    autoEnableTimer: true
   };
 
   let appSettings = { ...defaultSettings };
@@ -113,6 +130,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const uploadInput = document.getElementById('setting-upload');
   const uploadStatus = document.getElementById('upload-status');
   const autoEnableCheckbox = document.getElementById('setting-auto-enable');
+  const autoEnableTimerCheckbox = document.getElementById('setting-auto-enable-timer');
 
   function updateUI() {
     langSelect.value = appSettings.language;
@@ -127,6 +145,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     soundSelect.value = soundVal;
     autoEnableCheckbox.checked = appSettings.autoEnableAlarm !== false;
+    autoEnableTimerCheckbox.checked = appSettings.autoEnableTimer !== false;
     
     uploadContainer.style.display = soundSelect.value === 'custom' ? 'flex' : 'none';
   }
@@ -209,8 +228,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     const file = e.target.files[0];
     if (!file) return;
 
+    const lang = appSettings.language === 'system' || !appSettings.language
+      ? (navigator.language.startsWith('ja') ? 'ja' : 'en')
+      : appSettings.language;
+    const dict = i18n[lang] || i18n.en;
+
     if (file.size > 5 * 1024 * 1024) {
-      uploadStatus.textContent = "ファイルサイズが5MBを超えています。";
+      uploadStatus.textContent = dict.uploadSizeError;
       uploadStatus.style.color = "#ff4444";
       return;
     }
@@ -220,13 +244,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       const dataUrl = event.target.result;
       try {
         await chrome.storage.local.set({ customSoundData: dataUrl });
-        uploadStatus.textContent = "アップロード成功！";
+        uploadStatus.textContent = dict.uploadSuccess;
         uploadStatus.style.color = "var(--accent-color)";
         
         chrome.runtime.sendMessage({ action: "playAudio", url: null, volume: appSettings.volume }).catch(() => {});
         setTimeout(() => chrome.runtime.sendMessage({ action: "stopAudio" }).catch(() => {}), 1500);
       } catch (err) {
-        uploadStatus.textContent = "保存に失敗しました（容量制限の可能性があります）。";
+        uploadStatus.textContent = dict.uploadFail;
         uploadStatus.style.color = "#ff4444";
         console.error(err);
       }
@@ -236,6 +260,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   autoEnableCheckbox.addEventListener('change', () => {
     appSettings.autoEnableAlarm = autoEnableCheckbox.checked;
+    saveSettings();
+  });
+
+  autoEnableTimerCheckbox.addEventListener('change', () => {
+    appSettings.autoEnableTimer = autoEnableTimerCheckbox.checked;
     saveSettings();
   });
 });
