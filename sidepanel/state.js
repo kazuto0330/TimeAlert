@@ -21,7 +21,11 @@ export const i18n = {
     delete: "削除",
     reset: "リセット",
     skipToday: "今日をスキップ",
-    untitled: "名称未設定"
+    untitled: "名称未設定",
+    stop: "停止",
+    timerBadge: "タイマー",
+    alarmBadge: "アラーム",
+    otherItems: "ほか{n}件"
   },
   en: {
     tabTimer: "Timer",
@@ -45,7 +49,12 @@ export const i18n = {
     delete: "Delete",
     reset: "Reset",
     skipToday: "Skip Today",
-    untitled: "Untitled"
+    untitled: "Untitled",
+    stop: "Stop",
+    timerBadge: "Timer",
+    alarmBadge: "Alarm",
+    otherItems: "+{n} other",
+    otherItemsPlural: "+{n} others"
   }
 };
 
@@ -59,7 +68,7 @@ export const defaultSettings = {
   lastTab: 'timer'
 };
 
-export let appState = { timers: [], alarms: [], settings: {} };
+export let appState = { timers: [], alarms: [], settings: {}, ringingItems: [] };
 
 export function saveState() {
   chrome.storage.sync.set({ 

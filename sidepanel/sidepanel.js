@@ -6,7 +6,7 @@ let currentTab = 'timer';
 let timerInterval = null;
 let activeItemToStop = null;
 
-let tabs, addBtn, cardList, activeHeaderContainer, activeHeaderTitle, activeHeaderTime, activeHeaderStopBtn;
+let tabs, addBtn, cardList, activeHeaderContainer, activeHeaderTitle, activeHeaderTime, activeHeaderStopBtn, ringingContainer;
 
 document.addEventListener('DOMContentLoaded', async () => {
   tabs = document.querySelectorAll('.tab-button');
@@ -16,6 +16,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   activeHeaderTitle = document.getElementById('active-header-title');
   activeHeaderTime = document.getElementById('active-header-time');
   activeHeaderStopBtn = document.getElementById('active-header-stop-btn');
+  ringingContainer = document.getElementById('ringing-container');
 
   activeHeaderStopBtn.addEventListener('click', async () => {
     if (!activeItemToStop) return;
@@ -45,6 +46,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Load initial state
   const data = await chrome.storage.sync.get(['timers', 'alarms', 'settings']);
+  const localData = await chrome.storage.local.get('ringingItems');
   
   if (data.timers) {
     appState.timers = data.timers.map(t => {
@@ -56,6 +58,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
   if (data.alarms) appState.alarms = data.alarms;
   appState.settings = { ...defaultSettings, ...(data.settings || {}) };
+  appState.ringingItems = localData.ringingItems || [];
   
   currentTab = appState.settings.lastTab || 'timer';
   tabs.forEach(t => {
@@ -70,6 +73,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   applyLanguage(appState.settings.language, cardList, renderCards);
   
   renderCards();
+  renderRingingCards();
   startUITimer();
 
   // Listen for storage changes
@@ -81,8 +85,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         appState.settings = { ...defaultSettings, ...(changes.settings.newValue || {}) };
         applyTheme(appState.settings.theme);
         applyLanguage(appState.settings.language, cardList, renderCards);
+        renderRingingCards();
       }
       renderCards();
+    } else if (namespace === 'local') {
+      if (changes.ringingItems) {
+        appState.ringingItems = changes.ringingItems.newValue || [];
+        renderRingingCards();
+      }
     }
   });
 
@@ -232,4 +242,61 @@ export function renderCards() {
     setupCardCommonEvents(card, item, currentTab);
     cardList.appendChild(card);
   });
+}
+
+export function renderRingingCards() {
+  if (!ringingContainer) return;
+  ringingContainer.innerHTML = '';
+
+  const items = appState.ringingItems || [];
+  if (items.length === 0) {
+    ringingContainer.style.display = 'none';
+    return;
+  }
+
+  ringingContainer.style.display = 'flex';
+
+  const lang = appState.settings.language === 'system' || !appState.settings.language 
+    ? (navigator.language.startsWith('ja') ? 'ja' : 'en') 
+    : appState.settings.language;
+  const dict = i18n[lang] || i18n.en;
+
+  // 最新のアイテムを取得（triggeredAtの降順）
+  const sortedItems = [...items].sort((a, b) => (b.triggeredAt || 0) - (a.triggeredAt || 0));
+  const latestItem = sortedItems[0];
+  const otherCount = sortedItems.length - 1;
+
+  const card = document.createElement('div');
+  card.className = 'ringing-card';
+  card.dataset.id = latestItem.id;
+
+  const badgeLabel = latestItem.type === 'timer' ? dict.timerBadge : dict.alarmBadge;
+  let otherText = '';
+  if (otherCount > 0) {
+    if (dict.otherItemsPlural && otherCount > 1) {
+      otherText = dict.otherItemsPlural.replace('{n}', otherCount);
+    } else {
+      otherText = (dict.otherItems || 'ほか{n}件').replace('{n}', otherCount);
+    }
+  }
+
+  card.innerHTML = `
+    <div class="ringing-card-info">
+      <div class="ringing-text-group">
+        <div class="ringing-meta">
+          <span class="ringing-badge">${badgeLabel}</span>
+          ${otherCount > 0 ? `<span class="ringing-other-badge">${otherText}</span>` : ''}
+        </div>
+        <span class="ringing-title" title="${latestItem.title}">${latestItem.title}</span>
+      </div>
+    </div>
+    <button class="ringing-stop-btn" title="${dict.stop}">⏹</button>
+  `;
+
+  const stopBtn = card.querySelector('.ringing-stop-btn');
+  stopBtn.addEventListener('click', async () => {
+    chrome.runtime.sendMessage({ action: "stopAudio" }).catch(() => {});
+  });
+
+  ringingContainer.appendChild(card);
 }

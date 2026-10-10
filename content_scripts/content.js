@@ -5,9 +5,22 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "showNotification") {
     showToastNotification(request.alarmId);
     sendResponse({ status: "ok" });
+  } else if (request.action === "closeNotification") {
+    closeToastNotification();
+    sendResponse({ status: "ok" });
   }
   return true;
 });
+
+function closeToastNotification() {
+  const toast = document.getElementById('time-alert-toast');
+  if (toast) {
+    toast.classList.add('ta-slide-out');
+    setTimeout(() => {
+      toast.remove();
+    }, 300);
+  }
+}
 
 const i18n = {
   ja: {

@@ -152,6 +152,20 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
     }
   }
 
+  // 鳴動中アイテム（ringingItems）をストレージに登録
+  const localData = await chrome.storage.local.get('ringingItems');
+  const ringingItems = localData.ringingItems || [];
+  const itemType = alarm.name.startsWith('timer_') ? 'timer' : 'alarm';
+  if (!ringingItems.some(item => item.id === alarm.name)) {
+    ringingItems.push({
+      id: alarm.name,
+      type: itemType,
+      title: notificationTitle,
+      triggeredAt: Date.now()
+    });
+    await chrome.storage.local.set({ ringingItems });
+  }
+
   // 通知の表示処理
   chrome.windows.getAll({ populate: false }, (windows) => {
     const focusedWindow = windows.find(w => w.focused);
@@ -219,13 +233,52 @@ async function playAudio() {
   chrome.runtime.sendMessage({ action: 'playAudio', url, volume }).catch(e => console.error(e));
 }
 
-// ポップアップ通知からの停止メッセージ等を受け取る
-chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
-  if (msg.action === "stopAudio") {
-    pendingToasts.forEach(toast => {
-      chrome.notifications.clear(toast.alarmId);
-    });
+// アラーム・タイマーの停止処理
+async function handleStopAlarm(alarmId = null) {
+  const localData = await chrome.storage.local.get('ringingItems');
+  let ringingItems = localData.ringingItems || [];
+
+  if (alarmId) {
+    ringingItems = ringingItems.filter(item => item.id !== alarmId);
+    chrome.notifications.clear(alarmId);
+    pendingToasts = pendingToasts.filter(t => t.alarmId !== alarmId);
+  } else {
+    // 全停止
+    pendingToasts.forEach(t => chrome.notifications.clear(t.alarmId));
+    ringingItems.forEach(t => chrome.notifications.clear(t.id));
+    ringingItems = [];
     pendingToasts = [];
+  }
+
+  await chrome.storage.local.set({ ringingItems });
+
+  // 鳴動中アイテムがすべて停止した場合、音声を停止し、Webページ上の通知も閉じる
+  if (ringingItems.length === 0) {
+    const offscreenUrl = chrome.runtime.getURL('offscreen/offscreen.html');
+    const existingContexts = await chrome.runtime.getContexts({
+      contextTypes: ['OFFSCREEN_DOCUMENT'],
+      documentUrls: [offscreenUrl]
+    });
+    if (existingContexts.length > 0) {
+      chrome.runtime.sendMessage({ action: "stopAudio" }).catch(() => {});
+    }
+
+    chrome.tabs.query({}, (tabs) => {
+      tabs.forEach(tab => {
+        if (tab.id) {
+          chrome.tabs.sendMessage(tab.id, { action: "closeNotification" }).catch(() => {});
+        }
+      });
+    });
+  }
+}
+
+// ポップアップ通知やサイドパネルからの停止メッセージ等を受け取る
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  if (msg.action === "stopRinging") {
+    handleStopAlarm(msg.id).catch(e => console.error(e));
+  } else if (msg.action === "stopAudio") {
+    handleStopAlarm().catch(e => console.error(e));
   } else if (msg.action === "playAudio" && sender.id === chrome.runtime.id && !sender.url?.includes('offscreen.html')) {
     playAudio().catch(e => console.error(e));
   }
@@ -255,16 +308,14 @@ async function showSystemNotification(alarmId, title) {
 chrome.notifications.onButtonClicked.addListener((notificationId, buttonIndex) => {
   if (buttonIndex === 0) {
     console.log("Notification stopped:", notificationId);
-    pendingToasts = pendingToasts.filter(t => t.alarmId !== notificationId);
-    chrome.runtime.sendMessage({ action: "stopAudio" }).catch(() => {});
+    handleStopAlarm(notificationId).catch(e => console.error(e));
   }
 });
 
 // システム通知の本体がクリックされた場合（Chromeを最前面にしつつアラームを停止する）
 chrome.notifications.onClicked.addListener((notificationId) => {
   console.log("Notification clicked and stopped:", notificationId);
-  pendingToasts = pendingToasts.filter(t => t.alarmId !== notificationId);
-  chrome.runtime.sendMessage({ action: "stopAudio" }).catch(() => {});
+  handleStopAlarm(notificationId).catch(e => console.error(e));
 
   chrome.windows.getLastFocused({ populate: false }, (window) => {
     if (window && window.id !== chrome.windows.WINDOW_ID_NONE) {
@@ -276,7 +327,6 @@ chrome.notifications.onClicked.addListener((notificationId) => {
 // システム通知が（ボタンではなく）閉じられた場合
 chrome.notifications.onClosed.addListener((notificationId, byUser) => {
   if (byUser) {
-    pendingToasts = pendingToasts.filter(t => t.alarmId !== notificationId);
-    chrome.runtime.sendMessage({ action: "stopAudio" }).catch(() => {});
+    handleStopAlarm(notificationId).catch(e => console.error(e));
   }
 });
