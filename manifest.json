@@ -27,7 +27,12 @@
     }
   ],
   "action": {
-    "default_title": "Time Alert"
+    "default_title": "Time Alert",
+    "default_icon": {
+      "16": "icons/icon.png",
+      "48": "icons/icon.png",
+      "128": "icons/icon.png"
+    }
   },
   "options_page": "settings/settings.html",
   "options_ui": {

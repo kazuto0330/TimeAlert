@@ -3,15 +3,15 @@
 const i18n = {
   ja: {
     timeUp: "時間になりました！",
-    stop: "ストップ"
+    stop: "ストップ",
+    badgeTitle: "Time Alert: 通知鳴動中（クリックしてサイドパネルで停止）"
   },
   en: {
     timeUp: "Time is up!",
-    stop: "Stop"
+    stop: "Stop",
+    badgeTitle: "Time Alert: Notification ringing (Click to stop in side panel)"
   }
 };
-
-let pendingToasts = []; // OS通知を出して、まだ画面上にポップアップを出せていないアラームのリスト
 
 // Utility: Calculate next alarm time
 function calculateNextAlarmTime(timeStr, days, skippedDate = null) {
@@ -44,59 +44,103 @@ function calculateNextAlarmTime(timeStr, days, skippedDate = null) {
   return null;
 }
 
+// 拡張機能アイコンのバッジ・タイトルを更新
+async function updateActionBadge() {
+  const localData = await chrome.storage.local.get('ringingItems');
+  const ringingItems = localData.ringingItems || [];
+
+  if (ringingItems.length > 0) {
+    chrome.action.setBadgeText({ text: '!' });
+    chrome.action.setBadgeBackgroundColor({ color: '#ff8c00' });
+
+    const settingsData = await chrome.storage.sync.get('settings');
+    const langPref = settingsData.settings?.language || 'system';
+    let lang = langPref;
+    if (lang === 'system' || !lang) {
+      lang = navigator.language.startsWith('ja') ? 'ja' : 'en';
+    }
+    const dict = i18n[lang] || i18n.en;
+    chrome.action.setTitle({ title: dict.badgeTitle });
+  } else {
+    chrome.action.setBadgeText({ text: '' });
+    chrome.action.setTitle({ title: "Time Alert" });
+  }
+}
+
+// 拡張機能の初期化・設定復元
+async function setupExtension() {
+  chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch((error) => console.error(error));
+  await updateActionBadge();
+  checkAndShowRingingToasts();
+}
+
 // 拡張機能インストール時の処理
 chrome.runtime.onInstalled.addListener(() => {
   console.log("Time Alert 拡張機能がインストールされました");
-  chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch((error) => console.error(error));
+  setupExtension();
+});
+
+// ブラウザ起動時の処理
+chrome.runtime.onStartup.addListener(() => {
+  console.log("Time Alert 拡張機能が起動しました");
+  setupExtension();
 });
 
 // ブラウザのウィンドウがアクティブになったときの処理
 chrome.windows.onFocusChanged.addListener((windowId) => {
   if (windowId !== chrome.windows.WINDOW_ID_NONE) {
-    checkAndShowPendingToasts();
+    checkAndShowRingingToasts();
   }
 });
 
 // タブが切り替わったときの処理
 chrome.tabs.onActivated.addListener(() => {
-  checkAndShowPendingToasts();
+  checkAndShowRingingToasts();
 });
 
 // タブが更新されたとき（ページの読み込み完了など）の処理
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (changeInfo.status === 'complete' && tab.active) {
-    checkAndShowPendingToasts();
+    checkAndShowRingingToasts();
   }
 });
 
-// pendingToastsが存在する場合、現在のアクティブタブにポップアップを表示する
-function checkAndShowPendingToasts() {
-  if (pendingToasts.length === 0) return;
+// ringingItemsが存在する場合、現在のアクティブタブにポップアップを表示する
+async function checkAndShowRingingToasts() {
+  const localData = await chrome.storage.local.get('ringingItems');
+  const ringingItems = localData.ringingItems || [];
+  if (ringingItems.length === 0) return;
 
-  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-    if (tabs.length > 0) {
+  chrome.windows.getAll({ populate: false }, (windows) => {
+    const focusedWindow = windows.find(w => w.focused) || windows[0];
+    if (!focusedWindow) return;
+
+    chrome.tabs.query({ active: true, windowId: focusedWindow.id }, (tabs) => {
+      if (tabs.length === 0) return;
       const activeTab = tabs[0];
-      if (activeTab.url && !activeTab.url.startsWith('chrome://') && !activeTab.url.startsWith('chrome-extension://')) {
-        pendingToasts.forEach(toast => {
-          chrome.tabs.sendMessage(activeTab.id, { 
-            action: "showNotification", 
-            alarmId: toast.title 
-          }).then(() => {
-            chrome.notifications.clear(toast.alarmId);
-            pendingToasts = pendingToasts.filter(t => t.alarmId !== toast.alarmId);
-          }).catch(err => {
-            console.warn("Pending toast send failed:", err);
+      if (
+        activeTab.url && 
+        !activeTab.url.startsWith('chrome://') && 
+        !activeTab.url.startsWith('chrome-extension://') &&
+        !activeTab.url.startsWith('chrome-error://') &&
+        !activeTab.url.startsWith('about:')
+      ) {
+        // 最新の鳴動アイテムを画面上部に表示
+        const latestItem = ringingItems[ringingItems.length - 1];
+        chrome.tabs.sendMessage(activeTab.id, { 
+          action: "showNotification", 
+          alarmId: latestItem.title 
+        }).then(() => {
+          // トーストが表示できたら、OS通知は閉じて二重通知を防ぐ
+          ringingItems.forEach(item => {
+            chrome.notifications.clear(item.id);
           });
+        }).catch(err => {
+          console.warn("Ringing toast send failed:", err);
         });
       }
-    }
+    });
   });
-}
-
-function addPendingToast(alarmId, title) {
-  if (!pendingToasts.find(t => t.alarmId === alarmId)) {
-    pendingToasts.push({ alarmId, title });
-  }
 }
 
 // アラーム発火時の処理
@@ -166,6 +210,9 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
     await chrome.storage.local.set({ ringingItems });
   }
 
+  // 拡張機能アイコンのバッジを更新
+  await updateActionBadge();
+
   // 通知の表示処理
   chrome.windows.getAll({ populate: false }, (windows) => {
     const focusedWindow = windows.find(w => w.focused);
@@ -173,28 +220,30 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
       chrome.tabs.query({ active: true, windowId: focusedWindow.id }, (tabs) => {
         if (tabs.length > 0) {
           const activeTab = tabs[0];
-          if (activeTab.url && !activeTab.url.startsWith('chrome://') && !activeTab.url.startsWith('chrome-extension://')) {
+          if (
+            activeTab.url && 
+            !activeTab.url.startsWith('chrome://') && 
+            !activeTab.url.startsWith('chrome-extension://') &&
+            !activeTab.url.startsWith('chrome-error://') &&
+            !activeTab.url.startsWith('about:')
+          ) {
             chrome.tabs.sendMessage(activeTab.id, { 
               action: "showNotification", 
               alarmId: notificationTitle
             }).catch(err => {
               console.warn("Content script not ready, fallback to system notification.", err);
               showSystemNotification(alarm.name, notificationTitle);
-              addPendingToast(alarm.name, notificationTitle);
             });
           } else {
             showSystemNotification(alarm.name, notificationTitle);
-            addPendingToast(alarm.name, notificationTitle);
           }
         } else {
           showSystemNotification(alarm.name, notificationTitle);
-          addPendingToast(alarm.name, notificationTitle);
         }
       });
     } else {
       // ブラウザがどのウィンドウもアクティブでない場合
       showSystemNotification(alarm.name, notificationTitle);
-      addPendingToast(alarm.name, notificationTitle);
     }
   });
 });
@@ -241,16 +290,14 @@ async function handleStopAlarm(alarmId = null) {
   if (alarmId) {
     ringingItems = ringingItems.filter(item => item.id !== alarmId);
     chrome.notifications.clear(alarmId);
-    pendingToasts = pendingToasts.filter(t => t.alarmId !== alarmId);
   } else {
     // 全停止
-    pendingToasts.forEach(t => chrome.notifications.clear(t.alarmId));
     ringingItems.forEach(t => chrome.notifications.clear(t.id));
     ringingItems = [];
-    pendingToasts = [];
   }
 
   await chrome.storage.local.set({ ringingItems });
+  await updateActionBadge(); // バッジを更新
 
   // 鳴動中アイテムがすべて停止した場合、音声を停止し、Webページ上の通知も閉じる
   if (ringingItems.length === 0) {
@@ -296,11 +343,15 @@ async function showSystemNotification(alarmId, title) {
 
   chrome.notifications.create(alarmId, {
     type: "basic",
-    iconUrl: "icons/icon128.png",
+    iconUrl: "icons/icon.png",
     title: "Time Alert",
     message: title,
     buttons: [{ title: dict.stop }],
     requireInteraction: true
+  }, (notificationId) => {
+    if (chrome.runtime.lastError) {
+      console.warn("chrome.notifications.create failed:", chrome.runtime.lastError.message);
+    }
   });
 }
 

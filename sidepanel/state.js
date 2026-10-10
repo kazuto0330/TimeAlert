@@ -25,7 +25,8 @@ export const i18n = {
     stop: "停止",
     timerBadge: "タイマー",
     alarmBadge: "アラーム",
-    otherItems: "ほか{n}件"
+    otherItems: "ほか{n}件",
+    badgeTitle: "Time Alert: 通知鳴動中（クリックしてサイドパネルで停止）"
   },
   en: {
     tabTimer: "Timer",
@@ -54,7 +55,8 @@ export const i18n = {
     timerBadge: "Timer",
     alarmBadge: "Alarm",
     otherItems: "+{n} other",
-    otherItemsPlural: "+{n} others"
+    otherItemsPlural: "+{n} others",
+    badgeTitle: "Time Alert: Notification ringing (Click to stop in side panel)"
   }
 };
 
