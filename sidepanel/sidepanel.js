@@ -35,11 +35,28 @@ document.addEventListener('DOMContentLoaded', async () => {
     } else if (currentTab === 'alarm') {
       const a = appState.alarms.find(alarm => alarm.id === activeItemToStop.id);
       if (a) {
-        a.enabled = false;
-        await chrome.alarms.clear(a.id);
+        if (a.days && a.days.length > 0) {
+          const currentNextTime = calculateNextAlarmTime(a.time, a.days, a.skippedDate);
+          if (currentNextTime) {
+            const nextDate = new Date(currentNextTime);
+            const skipDateStr = `${nextDate.getFullYear()}-${(nextDate.getMonth()+1).toString().padStart(2, '0')}-${nextDate.getDate().toString().padStart(2, '0')}`;
+            a.skippedDate = skipDateStr;
+            const followingTime = calculateNextAlarmTime(a.time, a.days, a.skippedDate);
+            if (followingTime) {
+              await chrome.alarms.create(a.id, { when: followingTime });
+            } else {
+              a.enabled = false;
+              await chrome.alarms.clear(a.id);
+            }
+          }
+        } else {
+          a.enabled = false;
+          await chrome.alarms.clear(a.id);
+        }
         saveState();
         chrome.runtime.sendMessage({ action: "stopAudio" }).catch(() => {});
         renderCards();
+        updateActiveHeader();
       }
     }
   });

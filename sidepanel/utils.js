@@ -69,7 +69,7 @@ export function calculateNextAlarmTime(timeStr, days, skippedDate = null) {
   const target = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m, 0, 0);
 
   if (days && days.length > 0) {
-    for (let i = 0; i <= 7; i++) {
+    for (let i = 0; i <= 14; i++) {
       const checkDate = new Date(target.getTime() + i * 24 * 60 * 60 * 1000);
       if (i === 0 && checkDate.getTime() <= now.getTime()) {
         continue;
